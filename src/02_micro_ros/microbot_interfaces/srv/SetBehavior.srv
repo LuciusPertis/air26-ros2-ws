@@ -1,0 +1,5 @@
+# Switch the active obstacle-avoidance behaviour at runtime.
+int8 behavior     # 1 = stop+timer, 2 = stop+random turn, 3 = service+action escape
+---
+bool success
+string message

@@ -1,0 +1,15 @@
+# The multi-step escape maneuver for behaviour 3. An ACTION is the right tool: it
+# runs for several seconds, reports progress (feedback), and can be cancelled
+# (e.g. if the user switches behaviour mid-escape). (Carried over from 02.)
+#
+# goal: which sides are open (from the /check_openings service)
+bool left_open
+bool right_open
+---
+# result
+bool succeeded
+string outcome      # "turned_left" | "turned_right" | "backed_and_turned"
+---
+# feedback
+string step         # "turning" | "backing_up" | "turning_180"
+float32 progress    # 0.0 .. 1.0

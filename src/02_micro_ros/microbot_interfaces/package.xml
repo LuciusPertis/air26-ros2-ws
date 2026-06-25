@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>microbot_interfaces</name>
+  <version>0.1.0</version>
+  <description>
+    AIR26 workshop 02 — custom interfaces for the micro-ROS obstacle-avoider:
+    SetBehavior (switch behaviour), CheckOpenings (instant L/R query service) and
+    EscapeObstacle (the behaviour-3 escape action). Teaches service vs action.
+  </description>
+  <maintainer email="luciuspertis@gmail.com">AIR26 Workshop</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+
+  <depend>action_msgs</depend>
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

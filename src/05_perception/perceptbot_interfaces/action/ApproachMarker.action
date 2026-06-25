@@ -1,0 +1,19 @@
+# Behaviour 6's "go to the ArUco marker" maneuver — the waypoint-like finale.
+# An ACTION again: it runs until the robot reaches the marker (or loses it), streams
+# feedback (search -> align -> approach) and is cancellable. Steering uses only the
+# marker's position/size in the image (no camera calibration needed): horizontal
+# offset -> turn, apparent area -> how close we are.
+#
+# goal
+int32 marker_id          # which marker to approach; -1 = the first one seen
+float32 stop_area_frac   # stop when the marker fills this fraction of the image; <=0 = default
+---
+# result
+bool succeeded
+string outcome           # "reached" | "lost" | "canceled" | "timeout"
+---
+# feedback
+string step              # "searching" | "aligning" | "approaching"
+bool visible             # is the target marker currently in view?
+float32 bearing          # horizontal offset in the image, -1.0 (left) .. +1.0 (right)
+float32 area_frac        # apparent marker area as a fraction of the image (proxy for range)

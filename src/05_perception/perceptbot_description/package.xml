@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>perceptbot_description</name>
+  <version>0.1.0</version>
+  <description>
+    AIR26 workshop 05 — the perception rover model: the project-02 skid-steer microbot
+    base (chassis, 4 wheels, 3 ultrasonics, labelled parts) PLUS a front-mounted
+    ESP32-CAM. Used for RViz / robot_state_publisher; the Webots world carries the
+    simulated devices.
+  </description>
+  <maintainer email="luciuspertis@gmail.com">AIR26 Workshop</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

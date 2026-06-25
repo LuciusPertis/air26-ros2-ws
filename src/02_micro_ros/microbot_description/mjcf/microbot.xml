@@ -1,0 +1,69 @@
+<!-- AIR26 Workshop 02 — MuJoCo model of the obstacle-avoider bot + an obstacle arena.
+     Mirrors urdf/microbot.urdf.xacro (chassis, 4 wheels, 3 ultrasonics, parts).
+     The base is a KINEMATIC planar joint (slide_x, slide_y, yaw): the driver sets its
+     velocity from /cmd_vel (skid-steer wheel friction is overkill for a teaching demo).
+     3 rangefinder sensors = the 3 ultrasonics; each casts a ray along its site +z.
+     MuJoCo geom `size` is HALF-extents. -->
+<mujoco model="microbot">
+  <compiler angle="radian"/>
+  <option timestep="0.005"/>
+
+  <default>
+    <geom rgba="0.6 0.6 0.6 1"/>
+  </default>
+
+  <worldbody>
+    <light pos="0 0 3" dir="0 0 -1" diffuse="0.9 0.9 0.9"/>
+    <geom name="ground" type="plane" size="3 3 0.1" rgba="0.3 0.3 0.35 1"/>
+
+    <!-- ===== obstacle arena (static) ===== -->
+    <geom name="wall_n" type="box" size="1.6 0.05 0.15" pos="0  1.6 0.15" rgba="0.5 0.4 0.3 1"/>
+    <geom name="wall_s" type="box" size="1.6 0.05 0.15" pos="0 -1.6 0.15" rgba="0.5 0.4 0.3 1"/>
+    <geom name="wall_e" type="box" size="0.05 1.6 0.15" pos="1.6 0 0.15" rgba="0.5 0.4 0.3 1"/>
+    <geom name="wall_w" type="box" size="0.05 1.6 0.15" pos="-1.6 0 0.15" rgba="0.5 0.4 0.3 1"/>
+    <geom name="pillar_1" type="box" size="0.12 0.12 0.15" pos="1.0 0.0 0.15" rgba="0.7 0.3 0.3 1"/>
+    <geom name="pillar_2" type="box" size="0.12 0.12 0.15" pos="-0.6 0.8 0.15" rgba="0.7 0.3 0.3 1"/>
+
+    <!-- ===== robot (planar kinematic base at z=0.10) ===== -->
+    <body name="base_link" pos="0 0 0.10">
+      <joint name="slide_x" type="slide" axis="1 0 0"/>
+      <joint name="slide_y" type="slide" axis="0 1 0"/>
+      <joint name="yaw" type="hinge" axis="0 0 1"/>
+      <geom type="box" size="0.15 0.14 0.05" rgba="0.25 0.25 0.28 1"/>
+
+      <!-- wheels (visual; hinge joints spun by the driver) -->
+      <body name="wheel_fl" pos="0.11 0.16 -0.05">
+        <joint name="wheel_fl_joint" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.05 0.02" euler="1.5708 0 0" rgba="0.05 0.05 0.05 1"/>
+      </body>
+      <body name="wheel_fr" pos="0.11 -0.16 -0.05">
+        <joint name="wheel_fr_joint" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.05 0.02" euler="1.5708 0 0" rgba="0.05 0.05 0.05 1"/>
+      </body>
+      <body name="wheel_rl" pos="-0.11 0.16 -0.05">
+        <joint name="wheel_rl_joint" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.05 0.02" euler="1.5708 0 0" rgba="0.05 0.05 0.05 1"/>
+      </body>
+      <body name="wheel_rr" pos="-0.11 -0.16 -0.05">
+        <joint name="wheel_rr_joint" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.05 0.02" euler="1.5708 0 0" rgba="0.05 0.05 0.05 1"/>
+      </body>
+
+      <!-- labelled parts -->
+      <geom type="box" size="0.05 0.06 0.02" pos="-0.05 0    0.07" rgba="0.1 0.7 0.25 1"/>  <!-- battery -->
+      <geom type="box" size="0.03 0.03 0.01" pos="0.06  0.05 0.06" rgba="0.85 0.1 0.1 1"/>  <!-- mcu -->
+      <geom type="box" size="0.025 0.025 0.02" pos="0.08 -0.06 0.07" rgba="0.95 0.55 0.1 1"/><!-- motor -->
+
+      <!-- ultrasonic sites: ray casts along site +z (front=+x, left=+y, right=-y) -->
+      <site name="us_front" pos="0.15 0    0" euler="0 1.5708 0" size="0.01"/>
+      <site name="us_left"  pos="0    0.14 0" euler="-1.5708 0 0" size="0.01"/>
+      <site name="us_right" pos="0   -0.14 0" euler="1.5708 0 0" size="0.01"/>
+    </body>
+  </worldbody>
+
+  <sensor>
+    <rangefinder name="rf_front" site="us_front"/>
+    <rangefinder name="rf_left"  site="us_left"/>
+    <rangefinder name="rf_right" site="us_right"/>
+  </sensor>
+</mujoco>

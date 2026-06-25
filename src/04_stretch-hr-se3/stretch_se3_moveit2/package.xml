@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>stretch_se3_moveit2</name>
+  <version>0.1.0</version>
+  <description>
+    AIR26 workshop — Part D (MoveIt2) for the Stretch (Hello Robot SE3) MuJoCo
+    simulation: a hand-generated MoveIt2 config (SRDF/kinematics/limits adapted
+    from the galactic stretch_moveit2 reference), a trajectory bridge that lets
+    MoveIt execute on the sim driver, and a C++ MoveGroupInterface reach demo.
+  </description>
+  <maintainer email="luciuspertis@gmail.com">AIR26 Workshop</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>moveit_ros_move_group</depend>
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>moveit_planners_ompl</depend>
+  <depend>moveit_simple_controller_manager</depend>
+  <depend>moveit_kinematics</depend>
+  <depend>moveit_configs_utils</depend>
+  <depend>rclcpp</depend>
+
+  <exec_depend>moveit_ros_visualization</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>stretch_se3_bringup</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

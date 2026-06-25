@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>stretch_se3_nav</name>
+  <version>0.1.0</version>
+  <description>
+    AIR26 workshop — Part C (Nav2) for the Stretch (Hello Robot SE3) MuJoCo
+    simulation: slam_toolbox mapping, AMCL localization + full Nav2 bringup with
+    sim-tuned params (base_link / /scan_filtered), a /cmd_vel -> /stretch/cmd_vel
+    relay, and a Nav2 Simple Commander waypoint demo.
+  </description>
+  <maintainer email="luciuspertis@gmail.com">AIR26 Workshop</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_amcl</exec_depend>
+  <exec_depend>nav2_simple_commander</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>teleop_twist_keyboard</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

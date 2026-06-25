@@ -1,0 +1,22 @@
+# ros2_control controllers for the Gazebo target (loaded by gz_ros2_control).
+#   * joint_state_broadcaster -> publishes /joint_states
+#   * position_controller     -> JointGroupPositionController, takes a
+#                                Float64MultiArray of [theta1, theta2, theta3] on
+#                                /position_controller/commands (fed by gz_command_relay).
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    use_sim_time: true
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    position_controller:
+      type: position_controllers/JointGroupPositionController
+
+position_controller:
+  ros__parameters:
+    joints:
+      - joint1
+      - joint2
+      - joint3

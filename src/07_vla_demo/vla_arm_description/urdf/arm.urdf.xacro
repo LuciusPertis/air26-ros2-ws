@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<!-- AIR26 Workshop 07 — VLA demo arm.
+     A deliberately simple 3-DOF arm built from primitive boxes (no meshes) so the
+     SAME model drops into RViz, Gazebo and MuJoCo. Each joint is a different colour
+     so kids can map "theta 1/2/3" to what they see move.
+
+       base_link  [joint1 Z yaw]    link1 (blue column)
+                  [joint2 Y pitch]  link2 (orange upper arm)
+                  [joint3 Y pitch]  link3 (green forearm)  ..  tip (red)
+
+     Set use_gz_control:=true to pull in the ros2_control + gz_ros2_control tags
+     (only needed for the Gazebo target). -->
+<robot name="vla_arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="use_gz_control" default="false"/>
+
+  <!-- materials -->
+  <material name="grey">   <color rgba="0.5 0.5 0.5 1"/></material>
+  <material name="blue">   <color rgba="0.1 0.3 0.9 1"/></material>
+  <material name="orange"> <color rgba="0.95 0.5 0.1 1"/></material>
+  <material name="green">  <color rgba="0.1 0.7 0.2 1"/></material>
+  <material name="red">    <color rgba="0.9 0.1 0.1 1"/></material>
+
+  <!-- a small box-inertia helper -->
+  <xacro:macro name="box_inertial" params="mass x y z">
+    <inertial>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass*(y*y+z*z)/12.0}" iyy="${mass*(x*x+z*z)/12.0}"
+               izz="${mass*(x*x+y*y)/12.0}" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- base: a flat plinth the arm stands on -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.025"/>
+      <geometry><box size="0.20 0.20 0.05"/></geometry>
+      <material name="grey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.025"/>
+      <geometry><box size="0.20 0.20 0.05"/></geometry>
+    </collision>
+    <xacro:box_inertial mass="2.0" x="0.2" y="0.2" z="0.05"/>
+  </link>
+
+  <!-- joint1: base yaw (theta 1) -->
+  <joint name="joint1" type="revolute">
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0.05"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="20" velocity="2.0"/>
+  </joint>
+  <link name="link1">
+    <visual>
+      <origin xyz="0 0 0.075"/>
+      <geometry><box size="0.08 0.08 0.15"/></geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.075"/>
+      <geometry><box size="0.08 0.08 0.15"/></geometry>
+    </collision>
+    <xacro:box_inertial mass="0.6" x="0.08" y="0.08" z="0.15"/>
+  </link>
+
+  <!-- joint2: shoulder pitch (theta 2) -->
+  <joint name="joint2" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 0.15"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5" upper="1.5" effort="20" velocity="2.0"/>
+  </joint>
+  <link name="link2">
+    <visual>
+      <origin xyz="0 0 0.15"/>
+      <geometry><box size="0.06 0.06 0.30"/></geometry>
+      <material name="orange"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.15"/>
+      <geometry><box size="0.06 0.06 0.30"/></geometry>
+    </collision>
+    <xacro:box_inertial mass="0.5" x="0.06" y="0.06" z="0.30"/>
+  </link>
+
+  <!-- joint3: elbow pitch (theta 3) -->
+  <joint name="joint3" type="revolute">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0 0 0.30"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.5" upper="2.5" effort="20" velocity="2.0"/>
+  </joint>
+  <link name="link3">
+    <visual>
+      <origin xyz="0 0 0.125"/>
+      <geometry><box size="0.05 0.05 0.25"/></geometry>
+      <material name="green"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.125"/>
+      <geometry><box size="0.05 0.05 0.25"/></geometry>
+    </collision>
+    <xacro:box_inertial mass="0.4" x="0.05" y="0.05" z="0.25"/>
+  </link>
+
+  <!-- tip: the "hand" marker at the end of the forearm -->
+  <joint name="tip_joint" type="fixed">
+    <parent link="link3"/>
+    <child link="tip_link"/>
+    <origin xyz="0 0 0.25"/>
+  </joint>
+  <link name="tip_link">
+    <visual>
+      <geometry><sphere radius="0.035"/></geometry>
+      <material name="red"/>
+    </visual>
+    <xacro:box_inertial mass="0.1" x="0.05" y="0.05" z="0.05"/>
+  </link>
+
+  <!-- ros2_control + gz_ros2_control (Gazebo target only) -->
+  <xacro:if value="$(arg use_gz_control)">
+    <xacro:include filename="$(find vla_arm_description)/urdf/arm.ros2_control.xacro"/>
+  </xacro:if>
+
+</robot>

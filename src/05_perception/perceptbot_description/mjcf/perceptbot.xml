@@ -1,0 +1,88 @@
+<!-- AIR26 Workshop 05 — MuJoCo model of the perception rover + arena.
+     The project-02 microbot base (kinematic planar joint, 4 show wheels, 3 rangefinder
+     ultrasonics) PLUS a front "cam" camera. The arena adds the three vision targets:
+     a bright white panel (light-seek B4), a green box (colour-seek B5) and an ArUco
+     marker panel (B6). MuJoCo geom `size` is HALF-extents. Reference embodiment — Webots
+     is the primary sim. -->
+<mujoco model="perceptbot">
+  <compiler angle="radian"/>
+  <option timestep="0.005"/>
+
+  <!-- NOTE: ArUco (behaviour 6) is a Webots-sim + real-cam feature. MuJoCo can't cleanly
+       map a flat image decal onto a box face (its 2d/cube texture projection distorts it),
+       so this reference embodiment covers behaviours 1-5 (obstacle + light + colour). The
+       crisp marker lives in the Webots world (ImageTexture) and on the real ESP32-CAM. -->
+
+  <default>
+    <geom rgba="0.6 0.6 0.6 1"/>
+  </default>
+
+  <worldbody>
+    <light pos="0 0 3" dir="0 0 -1" diffuse="0.9 0.9 0.9"/>
+    <!-- extra light over the white panel so behaviour 4 has a real bright spot -->
+    <light pos="0 1.4 1.2" dir="0 -0.5 -1" diffuse="1 1 1"/>
+    <geom name="ground" type="plane" size="3 3 0.1" rgba="0.3 0.3 0.35 1"/>
+
+    <!-- ===== arena walls ===== -->
+    <geom name="wall_n" type="box" size="1.6 0.05 0.15" pos="0  1.6 0.15" rgba="0.5 0.4 0.3 1"/>
+    <geom name="wall_s" type="box" size="1.6 0.05 0.15" pos="0 -1.6 0.15" rgba="0.5 0.4 0.3 1"/>
+    <geom name="wall_e" type="box" size="0.05 1.6 0.15" pos="1.6 0 0.15" rgba="0.5 0.4 0.3 1"/>
+    <geom name="wall_w" type="box" size="0.05 1.6 0.15" pos="-1.6 0 0.15" rgba="0.5 0.4 0.3 1"/>
+
+    <!-- ===== vision targets ===== -->
+    <!-- B4 light-seek: bright white panel on +Y wall -->
+    <geom name="light_panel" type="box" size="0.4 0.02 0.3" pos="0 1.55 0.4" rgba="1 1 1 1"/>
+    <!-- B5 colour-seek: green box on -Y wall -->
+    <geom name="green_box" type="box" size="0.15 0.15 0.15" pos="0 -1.4 0.15" rgba="0.1 0.8 0.2 1"/>
+
+    <!-- ===== pillars for obstacle behaviours 1-3 ===== -->
+    <geom name="pillar_1" type="box" size="0.12 0.12 0.15" pos="-1.0 0.0 0.15" rgba="0.7 0.3 0.3 1"/>
+    <geom name="pillar_2" type="box" size="0.12 0.12 0.15" pos="-0.6 0.8 0.15" rgba="0.7 0.3 0.3 1"/>
+
+    <!-- ===== robot (planar kinematic base at z=0.10) ===== -->
+    <body name="base_link" pos="0 0 0.10">
+      <joint name="slide_x" type="slide" axis="1 0 0"/>
+      <joint name="slide_y" type="slide" axis="0 1 0"/>
+      <joint name="yaw" type="hinge" axis="0 0 1"/>
+      <geom type="box" size="0.15 0.14 0.05" rgba="0.25 0.25 0.28 1"/>
+
+      <!-- === CHECKPOINT: camera ===  front camera, looks along robot +x -->
+      <camera name="cam" pos="0.15 0 0.04" xyaxes="0 -1 0 0 0 1" fovy="60"/>
+      <!-- === END CHECKPOINT: camera === -->
+
+      <!-- wheels (visual; hinge joints spun by the driver) -->
+      <body name="wheel_fl" pos="0.11 0.16 -0.05">
+        <joint name="wheel_fl_joint" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.05 0.02" euler="1.5708 0 0" rgba="0.05 0.05 0.05 1"/>
+      </body>
+      <body name="wheel_fr" pos="0.11 -0.16 -0.05">
+        <joint name="wheel_fr_joint" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.05 0.02" euler="1.5708 0 0" rgba="0.05 0.05 0.05 1"/>
+      </body>
+      <body name="wheel_rl" pos="-0.11 0.16 -0.05">
+        <joint name="wheel_rl_joint" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.05 0.02" euler="1.5708 0 0" rgba="0.05 0.05 0.05 1"/>
+      </body>
+      <body name="wheel_rr" pos="-0.11 -0.16 -0.05">
+        <joint name="wheel_rr_joint" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.05 0.02" euler="1.5708 0 0" rgba="0.05 0.05 0.05 1"/>
+      </body>
+
+      <!-- labelled parts -->
+      <geom type="box" size="0.05 0.06 0.02" pos="-0.05 0    0.07" rgba="0.1 0.7 0.25 1"/>
+      <geom type="box" size="0.03 0.03 0.01" pos="0.06  0.05 0.06" rgba="0.85 0.1 0.1 1"/>
+      <geom type="box" size="0.025 0.025 0.02" pos="0.08 -0.06 0.07" rgba="0.95 0.55 0.1 1"/>
+
+      <!-- ultrasonic sites: ray casts along site +z (front=+x, left=+y, right=-y) -->
+      <site name="us_front" pos="0.15 0    0" euler="0 1.5708 0" size="0.01"/>
+      <site name="us_left"  pos="0    0.14 0" euler="-1.5708 0 0" size="0.01"/>
+      <site name="us_right" pos="0   -0.14 0" euler="1.5708 0 0" size="0.01"/>
+    </body>
+  </worldbody>
+
+  <sensor>
+    <rangefinder name="rf_front" site="us_front"/>
+    <rangefinder name="rf_left"  site="us_left"/>
+    <rangefinder name="rf_right" site="us_right"/>
+  </sensor>
+</mujoco>

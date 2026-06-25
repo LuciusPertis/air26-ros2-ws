@@ -1,0 +1,53 @@
+<?xml version="1.0" ?>
+<!-- webots_ros2 device map for the perception rover. This is the `robot_description`
+     handed to WebotsController. It does NOT describe geometry (the .wbt world does that)
+     — it only (a) maps the Webots devices to ROS topics and (b) loads the /cmd_vel driver
+     plugin. Device `reference` names must match the device names in perceptbot.wbt. -->
+<robot name="perceptbot">
+  <webots>
+
+    <!-- 3 ultrasonics -> sensor_msgs/Range on /ultrasonic/* (same as project 02) -->
+    <device reference="us_front" type="DistanceSensor">
+      <ros>
+        <enabled>true</enabled>
+        <updateRate>10</updateRate>
+        <topicName>/ultrasonic/front</topicName>
+        <alwaysOn>true</alwaysOn>
+        <frameName>us_front</frameName>
+      </ros>
+    </device>
+    <device reference="us_left" type="DistanceSensor">
+      <ros>
+        <enabled>true</enabled>
+        <updateRate>10</updateRate>
+        <topicName>/ultrasonic/left</topicName>
+        <alwaysOn>true</alwaysOn>
+        <frameName>us_left</frameName>
+      </ros>
+    </device>
+    <device reference="us_right" type="DistanceSensor">
+      <ros>
+        <enabled>true</enabled>
+        <updateRate>10</updateRate>
+        <topicName>/ultrasonic/right</topicName>
+        <alwaysOn>true</alwaysOn>
+        <frameName>us_right</frameName>
+      </ros>
+    </device>
+
+    <!-- front camera -> /camera/image_raw + /camera/camera_info -->
+    <device reference="camera" type="Camera">
+      <ros>
+        <enabled>true</enabled>
+        <updateRate>20</updateRate>
+        <topicName>/camera</topicName>
+        <alwaysOn>true</alwaysOn>
+        <frameName>camera_optical_frame</frameName>
+      </ros>
+    </device>
+
+    <!-- /cmd_vel -> skid-steer wheels -->
+    <plugin type="perceptbot_sim.perceptbot_driver.PerceptbotDriver" />
+
+  </webots>
+</robot>

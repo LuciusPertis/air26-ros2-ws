@@ -1,0 +1,35 @@
+# Velocity/acceleration limits used for time-parameterizing planned trajectories.
+# Conservative values (the sim is slower than real time); raise the scaling
+# factors toward 1.0 for faster motion.
+default_velocity_scaling_factor: 0.3
+default_acceleration_scaling_factor: 0.3
+
+joint_limits:
+  joint_lift:
+    has_velocity_limits: true
+    max_velocity: 0.15
+    has_acceleration_limits: true
+    max_acceleration: 0.3
+  joint_arm_l0: &arm_seg
+    has_velocity_limits: true
+    max_velocity: 0.05
+    has_acceleration_limits: true
+    max_acceleration: 0.1
+  joint_arm_l1: *arm_seg
+  joint_arm_l2: *arm_seg
+  joint_arm_l3: *arm_seg
+  joint_wrist_yaw: &wrist
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 2.0
+  joint_wrist_pitch: *wrist
+  joint_wrist_roll: *wrist
+  joint_head_pan: *wrist
+  joint_head_tilt: *wrist
+  joint_gripper_finger_left: &gripper
+    has_velocity_limits: true
+    max_velocity: 0.5
+    has_acceleration_limits: true
+    max_acceleration: 1.0
+  joint_gripper_finger_right: *gripper

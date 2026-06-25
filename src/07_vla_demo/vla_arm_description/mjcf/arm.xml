@@ -1,0 +1,47 @@
+<!-- AIR26 Workshop 07 — VLA demo arm, MuJoCo (MJCF) version.
+     Mirrors urdf/arm.urdf.xacro exactly: same 3 joints, axes, limits and colours.
+     NOTE: MuJoCo geom `size` is HALF-extents, so each URDF box dimension is halved.
+     Position actuators let the MuJoCo driver track /joint_command setpoints. -->
+<mujoco model="vla_arm">
+  <compiler angle="radian"/>
+  <option gravity="0 0 -9.81" timestep="0.002"/>
+
+  <default>
+    <joint damping="1.0" armature="0.1"/>
+    <geom contype="0" conaffinity="0"/>
+  </default>
+
+  <worldbody>
+    <light pos="0 0 2" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
+    <geom name="ground" type="plane" size="2 2 0.1" rgba="0.3 0.3 0.35 1"/>
+
+    <body name="base_link" pos="0 0 0">
+      <geom type="box" size="0.10 0.10 0.025" pos="0 0 0.025" rgba="0.5 0.5 0.5 1"/>
+
+      <body name="link1" pos="0 0 0.05">
+        <joint name="joint1" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
+        <geom type="box" size="0.04 0.04 0.075" pos="0 0 0.075" rgba="0.1 0.3 0.9 1"/>
+
+        <body name="link2" pos="0 0 0.15">
+          <joint name="joint2" type="hinge" axis="0 1 0" range="-1.5 1.5"/>
+          <geom type="box" size="0.03 0.03 0.15" pos="0 0 0.15" rgba="0.95 0.5 0.1 1"/>
+
+          <body name="link3" pos="0 0 0.30">
+            <joint name="joint3" type="hinge" axis="0 1 0" range="-2.5 2.5"/>
+            <geom type="box" size="0.025 0.025 0.125" pos="0 0 0.125" rgba="0.1 0.7 0.2 1"/>
+
+            <body name="tip_link" pos="0 0 0.25">
+              <geom type="sphere" size="0.035" rgba="0.9 0.1 0.1 1"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="act_joint1" joint="joint1" kp="50" ctrlrange="-3.14 3.14"/>
+    <position name="act_joint2" joint="joint2" kp="50" ctrlrange="-1.5 1.5"/>
+    <position name="act_joint3" joint="joint3" kp="50" ctrlrange="-2.5 2.5"/>
+  </actuator>
+</mujoco>

@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Generate config/stretch_se3.srdf for the AIR26 workshop MoveIt2 config.
+
+There is no official MoveIt2 config for the Stretch on Humble, so this is the
+"Setup Assistant" step done reproducibly in code. It starts from the **galactic**
+`stretch_description_dex.srdf` (saved next to this script as
+`galactic_dex_reference.srdf`) and reconciles it against OUR SE3 URDF:
+
+  * Planning groups trimmed to what the MuJoCo driver can actually execute:
+    - stretch_arm  = joint_lift + joint_arm_l0..l3 + wrist yaw/pitch/roll
+      (galactic listed joint_arm_l4, which is *fixed* in our URDF -> dropped)
+    - stretch_gripper, stretch_head kept
+    - the galactic `position` / `mobile_base_arm` groups and their planar base
+      virtual joint are DROPPED: they needed Hello Robot's custom
+      stretch_kinematics_plugin (not installed) and we plan the arm with a parked
+      base (CP-D4 drives the base with Nav2 first, then plans the arm).
+  * Collision matrix: galactic pairs are reused, but our URDF renames the gripper
+    body (link_straight_gripper -> link_gripper_s3_body) and adds several sensor /
+    aruco / cosmetic links that are rigidly fixed to the arm or base. Those would
+    otherwise be flagged "in collision" at the home pose and block every plan, so
+    we fully disable collisions for them (they never move independently).
+
+Re-run after editing:  python3 scripts/generate_srdf.py
+"""
+
+import os
+import re
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REF = os.path.join(HERE, 'galactic_dex_reference.srdf')
+URDF = os.path.join(HERE, '..', 'config', 'stretch_se3.urdf')
+OUT = os.path.join(HERE, '..', 'config', 'stretch_se3.srdf')
+
+# Links in our URDF that the galactic matrix doesn't fully cover (renamed gripper
+# body + sensor/aruco/cosmetic attachments). Rigidly fixed to a parent -> they
+# cannot self-collide in any way planning cares about, so disable them entirely.
+FULLY_DISABLE = [
+    'link_gripper_s3_body',          # our gripper body (galactic: link_straight_gripper)
+    'link_wrist_yaw_bottom',
+    'base_imu',
+    'caster_link',
+    'gripper_camera_link',
+    'link_aruco_fingertip_left',
+    'link_aruco_fingertip_right',
+    'link_aruco_d405',
+    'link_head_nav_cam',
+]
+
+# Opposing gripper fingers touch each other at the closed pose — a self-collision
+# that must always be disabled on a gripper (the galactic SRDF only disabled each
+# finger vs its OWN fingertip, not the cross pairs). Without these the home state
+# is "in collision" and no plan ever starts.
+EXTRA_DISABLE = [
+    ('link_gripper_finger_left', 'link_gripper_finger_right'),
+    ('link_gripper_finger_left', 'link_gripper_fingertip_right'),
+    ('link_gripper_fingertip_left', 'link_gripper_finger_right'),
+    ('link_gripper_fingertip_left', 'link_gripper_fingertip_right'),
+]
+
+
+def collision_links(urdf_text):
+    links = re.findall(r'<link name="([^"]+)">(.*?)</link>', urdf_text, re.S)
+    return [n for n, body in links if '<collision' in body]
+
+
+def main():
+    urdf_text = open(URDF).read()
+    links = collision_links(urdf_text)
+
+    # --- collision pairs: keep galactic ones (minus the renamed gripper link) ---
+    ref = open(REF).read()
+    pairs = set()
+    out_lines = []
+    for m in re.finditer(r'link1="([^"]+)" link2="([^"]+)" reason="([^"]+)"', ref):
+        a, b, reason = m.group(1), m.group(2), m.group(3)
+        if a == 'link_straight_gripper' or b == 'link_straight_gripper':
+            continue                       # renamed below to link_gripper_s3_body
+        if a not in links or b not in links:
+            continue                       # link absent from our URDF
+        pairs.add(frozenset((a, b)))
+        out_lines.append(
+            f'    <disable_collisions link1="{a}" link2="{b}" reason="{reason}"/>')
+
+    # --- fully disable the extra/renamed links against every collision link ---
+    for link in FULLY_DISABLE:
+        if link not in links:
+            continue
+        for other in links:
+            if other == link:
+                continue
+            key = frozenset((link, other))
+            if key in pairs:
+                continue
+            pairs.add(key)
+            out_lines.append(
+                f'    <disable_collisions link1="{link}" link2="{other}" '
+                'reason="Cosmetic"/>')
+
+    # explicit intra-gripper pairs
+    for a, b in EXTRA_DISABLE:
+        if a in links and b in links and frozenset((a, b)) not in pairs:
+            pairs.add(frozenset((a, b)))
+            out_lines.append(
+                f'    <disable_collisions link1="{a}" link2="{b}" reason="Default"/>')
+
+    srdf = SRDF_TEMPLATE.format(disable_collisions='\n'.join(sorted(out_lines)))
+    with open(OUT, 'w') as f:
+        f.write(srdf)
+    print(f'Wrote {OUT}')
+    print(f'  collision links: {len(links)},  disabled pairs: {len(pairs)}')
+
+
+SRDF_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
+<!-- AIR26 workshop SRDF for the Stretch SE3 (generated by scripts/generate_srdf.py).
+     Adapted from the galactic hello-robot stretch_moveit2 dex SRDF.
+     NOTE: robot name MUST match the URDF (<robot name="stretch">). -->
+<robot name="stretch">
+    <group name="stretch_arm">
+        <joint name="joint_lift"/>
+        <joint name="joint_arm_l0"/>
+        <joint name="joint_arm_l1"/>
+        <joint name="joint_arm_l2"/>
+        <joint name="joint_arm_l3"/>
+        <joint name="joint_wrist_yaw"/>
+        <joint name="joint_wrist_pitch"/>
+        <joint name="joint_wrist_roll"/>
+    </group>
+    <group name="stretch_gripper">
+        <link name="link_gripper_s3_body"/>
+        <link name="link_grasp_center"/>
+        <link name="link_gripper_finger_left"/>
+        <link name="link_gripper_finger_right"/>
+        <link name="link_gripper_fingertip_left"/>
+        <link name="link_gripper_fingertip_right"/>
+    </group>
+    <group name="stretch_head">
+        <joint name="joint_head_pan"/>
+        <joint name="joint_head_tilt"/>
+    </group>
+
+    <group_state name="stow" group="stretch_arm">
+        <joint name="joint_lift" value="0.4"/>
+        <joint name="joint_arm_l0" value="0.0"/>
+        <joint name="joint_arm_l1" value="0.0"/>
+        <joint name="joint_arm_l2" value="0.0"/>
+        <joint name="joint_arm_l3" value="0.0"/>
+        <joint name="joint_wrist_yaw" value="3.3"/>
+        <joint name="joint_wrist_pitch" value="0.0"/>
+        <joint name="joint_wrist_roll" value="0.0"/>
+    </group_state>
+    <group_state name="ready" group="stretch_arm">
+        <joint name="joint_lift" value="0.8"/>
+        <joint name="joint_arm_l0" value="0.06"/>
+        <joint name="joint_arm_l1" value="0.06"/>
+        <joint name="joint_arm_l2" value="0.06"/>
+        <joint name="joint_arm_l3" value="0.06"/>
+        <joint name="joint_wrist_yaw" value="0.0"/>
+        <joint name="joint_wrist_pitch" value="0.0"/>
+        <joint name="joint_wrist_roll" value="0.0"/>
+    </group_state>
+    <group_state name="stow" group="stretch_head">
+        <joint name="joint_head_pan" value="0.0"/>
+        <joint name="joint_head_tilt" value="0.0"/>
+    </group_state>
+    <group_state name="look_at_gripper" group="stretch_head">
+        <joint name="joint_head_pan" value="-1.5"/>
+        <joint name="joint_head_tilt" value="-0.8"/>
+    </group_state>
+    <group_state name="open" group="stretch_gripper">
+        <joint name="joint_gripper_finger_left" value="0.3"/>
+        <joint name="joint_gripper_finger_right" value="0.3"/>
+    </group_state>
+    <group_state name="closed" group="stretch_gripper">
+        <joint name="joint_gripper_finger_left" value="0.0"/>
+        <joint name="joint_gripper_finger_right" value="0.0"/>
+    </group_state>
+
+    <end_effector name="gripper" parent_link="link_grasp_center" group="stretch_gripper"/>
+    <virtual_joint name="virtual_joint" type="fixed" parent_frame="odom" child_link="base_link"/>
+
+{disable_collisions}
+</robot>
+'''
+
+
+if __name__ == '__main__':
+    main()

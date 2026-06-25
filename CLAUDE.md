@@ -1,0 +1,114 @@
+# AIR26 ROS2 Student Workshop
+
+## Workspace Overview
+
+ROS2 Humble workspace for a student workshop. All projects are modular and self-contained so students can enable/disable/remove individual features and observe how the system changes.
+
+**Working directory:** `/home/lsp/air26-ros2-ws`
+**ROS2 distro:** Humble (`source /opt/ros/humble/setup.bash`)
+**Build system:** colcon (`colcon build --packages-select <pkg>`)
+
+## Workshop Structure
+
+Each project lives under `src/` as one or more ROS2 packages. Projects are numbered; each compiles and runs independently.
+
+```
+src/
+  01_basics/
+    basics_py/      # ament_python  — 7 nodes in Python
+    basics_cpp/     # ament_cmake   — same 7 nodes in C++
+    basics_cross/   # ament_cmake   — cross-language (Py↔C++) interop
+    TUTORIAL.md
+  02_turtlesim/     # (planned)
+  ...
+```
+
+## Design Rules
+
+1. **No launch files** in the basics projects — students run nodes with `ros2 run`.
+2. **Modular feature blocks** — each node has clearly marked sections students can comment out to disable a feature.
+3. **Checkpoint markers** wrap every major feature block:
+   - Python: `# === CHECKPOINT: <name> ===` / `# === END CHECKPOINT: <name> ===`
+   - C++:    `// === CHECKPOINT: <name> ===` / `// === END CHECKPOINT: <name> ===`
+4. **Minimal dependencies** — only `rclpy`/`rclcpp` and standard ROS2 message packages.
+5. **One concept per file** where possible; combined node is a separate file.
+
+## Checkpoint Convention
+
+Comment out a block, rebuild, run — feature disappears. Restore and rebuild — it returns.
+
+```python
+# === CHECKPOINT: topics ===
+self.pub = self.create_publisher(...)
+# === END CHECKPOINT: topics ===
+```
+
+## Build & Run
+
+```bash
+source /opt/ros/humble/setup.bash
+cd ~/air26-ros2-ws
+colcon build --packages-select basics_py basics_cpp basics_cross
+source install/setup.bash
+ros2 run <package_name> <node_name>
+```
+
+## Package Map
+
+| Project | Package | Lang | Nodes |
+|---------|---------|------|-------|
+| 01_basics | `basics_py` | Python | topic_talker/listener, service_server/client, action_server/client, combined_node |
+| 01_basics | `basics_cpp` | C++ | same 7 nodes |
+| 01_basics | `basics_cross` | Py+C++ | py_talker→cpp_listener, cpp_service_server→py_client, py_action_server→cpp_client |
+| 02_micro_ros | `microbot_interfaces` | msgs | `SetBehavior.srv`, `CheckOpenings.srv`, `EscapeObstacle.action` |
+| 02_micro_ros | `microbot_description` | Python | skid-steer rover URDF (chassis, 4 wheels, 3 ultrasonics, motor/MCU/battery) + MJCF + RViz; `use_gazebo` arg (Gazebo target deferred) |
+| 02_micro_ros | `microbot_sim` | Python | `mujoco_driver` (drive + 3 rangefinder ultrasonics + odom/TF), `scan_to_range` (Gazebo helper), `mujoco.launch.py` |
+| 02_micro_ros | `microbot_behaviors` | Python | `behavior_manager` (random walk + B1/B2 pub-sub + B3 client + `/set_behavior`), `obstacle_services` (`/check_openings` srv + `/escape_obstacle` action) |
+| 04_stretch-hr-se3 | `upstream/stretch_ros2`, `upstream/stretch_mujoco` | vendored | official Hello Robot SE3 stack (driver, nav2, description) + MuJoCo sim |
+| 04_stretch-hr-se3 | `stretch_se3_bringup` | Python | `sim.launch.py` (clean MuJoCo bringup, plain scene) + SE3 URDF/meshes + RViz |
+| 04_stretch-hr-se3 | `stretch_se3_control` | Python | Part B control demos: square_drive, lift_arm, head_scan, wrist_gripper, wake_up (checkpoint-marked) |
+| 04_stretch-hr-se3 | `stretch_se3_nav` | Python | Part C Nav2: `mapping.launch.py` (slam_toolbox) + `navigation.launch.py` (AMCL+Nav2), sim-tuned params, cmd_vel_relay, waypoint_demo |
+| 04_stretch-hr-se3 | `stretch_se3_moveit2` | C++/Py | Part D MoveIt2: hand-generated config (SRDF via `scripts/generate_srdf.py`), `trajectory_bridge` (l0-l3→wrist_extension), `move_group.launch.py`, C++ `reach_demo` |
+| 07_vla_demo | `vla_arm_description` | Python | simple 3-DOF arm shared by all sims: `arm.urdf.xacro` (RViz/Gazebo, `use_gz_control`), `arm.mjcf` (MuJoCo), `controllers.yaml`, RViz |
+| 07_vla_demo | `vla_demo` | Python | mini-VLA pipeline: `vla_brain` (instruction→/delta_theta), `theta_integrator`, `mujoco_driver`, `gz_command_relay`, pluggable `policies/`, launch for rviz/mujoco/gazebo |
+| 05_perception | `perceptbot_interfaces` | msgs | `SetBehavior.srv` (1-6), `CheckOpenings.srv`, `EscapeObstacle.action` (from 02) + `ApproachMarker.action` |
+| 05_perception | `perceptbot_description` | Python | project-02 skid-steer base + front camera link (`perceptbot.urdf.xacro`) for RViz/TF |
+| 05_perception | `perceptbot_perception` | Python | `camera_processor` (image→`/camera/mean_intensity`+`mean_color`), `aruco_detector` (image→`vision_msgs/Detection2DArray`+overlay), `mjpeg_bridge` (ESP32-CAM WiFi MJPEG→`/camera/image_raw`) |
+| 05_perception | `perceptbot_behaviors` | Python | `behavior_manager` (B1-3 obstacle + B4 light + B5 colour + B6 ArUco), `obstacle_services` (B3), `marker_approach` (B6 action) |
+| 05_perception | `perceptbot_sim` | Python | 3 embodiments: **Webots** (`.wbt`+device URDF+driver plugin, `webots.launch.py`), **MuJoCo** (`mujoco_driver` w/ offscreen camera, `mujoco.launch.py`), **Gazebo** (`perceptbot.sdf`+`gz_bridge.yaml`+`scan_to_range`, `gazebo.launch.py`) |
+
+> **04 notes:** uses **launch files** (Nav2/MoveIt2 require them) — checkpoint blocks
+> live in launch files/nodes. Provisioning, pins, and the one vendored patch are in
+> `src/04_stretch-hr-se3/SETUP.md`; build/checkpoint plan in `PLAN.md`; student
+> walkthrough in `TUTORIAL.md`. Run: `ros2 launch stretch_se3_bringup sim.launch.py`.
+
+> **02 notes:** ROS-side only (ESP32 micro-ROS flashing is a SEPARATE hardware plan). One
+> rover, MuJoCo sim (Gazebo target deferred) + RViz. Behaviours escalate topic→service→action
+> (B1/B2 pub-sub; B3 = `/check_openings` service + `/escape_obstacle` action, switchable via
+> `/set_behavior`). Docs in `src/02_micro_ros/{PLAN,TUTORIAL,SETUP}.md`. Run: `ros2 launch
+> microbot_sim mujoco.launch.py` + `ros2 launch microbot_behaviors behaviors.launch.py`.
+
+> **05 notes:** the project-02 rover **+ a front ESP32-CAM**; "same base, richer senses".
+> **Three embodiments** (like 07): **Webots** (R2025a, primary), **MuJoCo** and **Gazebo**
+> (Fortress) — all expose the same `/cmd_vel` + `/ultrasonic/*` + `/camera/*` interface, so
+> behaviours don't change. 3 camera topics: `/camera/{image_raw,mean_intensity,mean_color}`
+> (+ `/aruco/detections`). Six behaviours via `/set_behavior`: 1-3 obstacle (from 02), 4
+> light-seek, 5 colour-seek, 6 ArUco search+approach (`/approach_marker` action). **ArUco (B6)
+> is Webots-sim + real-cam only** — MuJoCo/Gazebo do B1-5 (flat marker decals don't render in
+> MuJoCo). Real `firmware/esp32cam_perception` mirrors the cheap topics over micro-ROS + image
+> over WiFi MJPEG; `mjpeg_bridge` pulls that stream into ROS for ArUco. Docs in
+> `src/05_perception/{THEORY,PLAN,TUTORIAL,SETUP}.md`. Run: `ros2 launch perceptbot_sim
+> {webots,mujoco,gazebo}.launch.py` + `ros2 launch perceptbot_behaviors behaviors.launch.py`.
+
+> **07 notes:** demonstrates "Δθ through ROS2" with a pluggable mini-VLA (no GPU/torch;
+> real-VLA hook in `policies/smolvla_adapter.py`). One arm, three sims (RViz/Gazebo
+> [Ignition Fortress + ros2_control]/MuJoCo). Provisioning + gotchas in
+> `src/07_vla_demo/SETUP.md`. Star topic: `/delta_theta`. Run: `ros2 launch vla_demo
+> rviz.launch.py`.
+
+## Adding New Projects
+
+- Create under `src/<NN>_<topic>/`
+- Python: `ros2 pkg create --build-type ament_python`
+- C++: `ros2 pkg create --build-type ament_cmake`
+- Follow checkpoint convention and update the package map above
