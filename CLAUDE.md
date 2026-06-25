@@ -76,6 +76,26 @@ ros2 run <package_name> <node_name>
 | 05_perception | `perceptbot_perception` | Python | `camera_processor` (image→`/camera/mean_intensity`+`mean_color`), `aruco_detector` (image→`vision_msgs/Detection2DArray`+overlay), `mjpeg_bridge` (ESP32-CAM WiFi MJPEG→`/camera/image_raw`) |
 | 05_perception | `perceptbot_behaviors` | Python | `behavior_manager` (B1-3 obstacle + B4 light + B5 colour + B6 ArUco), `obstacle_services` (B3), `marker_approach` (B6 action) |
 | 05_perception | `perceptbot_sim` | Python | 3 embodiments: **Webots** (`.wbt`+device URDF+driver plugin, `webots.launch.py`), **MuJoCo** (`mujoco_driver` w/ offscreen camera, `mujoco.launch.py`), **Gazebo** (`perceptbot.sdf`+`gz_bridge.yaml`+`scan_to_range`, `gazebo.launch.py`) |
+| 03_multi_bot_bt | `multibot_interfaces` | msgs | `SetFormation.srv` (convoy\|parallel) |
+| 03_multi_bot_bt | `multibot_description` | Python | perceptbot variant + back/right ArUco marker links; Webots `patrol.wbt` (3 namespaced units r1/r2/r3 + world-anchor marker, `DICT_4X4_250`) |
+| 03_multi_bot_bt | `multibot_perception` | Python | `aruco_pose_detector` (solvePnP marker pose + TF), `relative_localizer` (named peer positions + world anchor; Tier-1, EKF deferred) |
+| 03_multi_bot_bt | `multibot_bt` | Python | `patrol_bt` (**py_trees**: Selector safety/follower/leader; convoy=US+ArUco fused; parallel=vel-match+side-US handoff), `formation_anchor` (leader velocity broadcaster) |
+| 03_multi_bot_bt | `multibot_sim` | Python | self-namespacing Webots driver plugin (`multibot_driver`, ns from robot name) + `patrol.launch.py` (world + 3× per-unit stack, `formation:=convoy\|parallel`) |
+
+> **03 notes:** the project-05 rover ×3, namespaced (`/r1 /r2 /r3`), patrolling under a per-unit
+> **py_trees Behaviour Tree**; **self-contained** (does NOT modify 05). Each unit wears ArUco
+> markers on **back (id `N0`) + right (id `N1`)** + a fixed **world anchor (id 99)**. Two styles
+> via `SetFormation`/launch arg: **convoy** (column; emergent leader; back-marker follow with
+> **fused US+ArUco** distance) and **parallel** (abreast; **velocity-match + side-US lateral
+> hold**, ArUco bootstraps). BT (py_trees_ros, live-viewable via `py-trees-tree-watcher`):
+> `Selector[safety→Avoid, patrol(InPatrolMode→[follow,recover,Lead]), RandomWalk]`. Modes:
+> **random** (wander+avoid baseline), convoy, parallel. Lost unit runs **SearchAndRecover**
+> (vision-only 360 spin; `enable_recovery` toggles it); **leader-vs-lost anchor-based**
+> (`anchor_range`; nearest=leader; auto-promote after turnaround). Tutorial phases
+> random→patrol(no recovery)→patrol(+recovery). **Tier-1** localization (EKF deferred).
+> Theory: FSM vs BT, Nav2 BT touch, DDS discovery/namespacing. Docs in
+> `src/03_multi_bot_bt/{THEORY,PLAN,TUTORIAL,SETUP}.md`. Run: `ros2 launch multibot_sim
+> patrol.launch.py formation:=convoy|parallel`.
 
 > **04 notes:** uses **launch files** (Nav2/MoveIt2 require them) — checkpoint blocks
 > live in launch files/nodes. Provisioning, pins, and the one vendored patch are in

@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<!-- webots_ros2 robot_description for a patrol unit: just loads the self-namespacing driver
+     plugin (it reads the Webots robot name -> /rN/...). Reused for all three units. -->
+<robot name="multibot">
+  <webots>
+    <plugin type="multibot_sim.multibot_driver.MultibotDriver" />
+  </webots>
+</robot>

@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>multibot_perception</name>
+  <version>0.1.0</version>
+  <description>
+    AIR26 workshop 03 — Tier-1 marker localization. aruco_pose_detector estimates each
+    visible marker's 3D pose (solvePnP, known intrinsics + size) and publishes it + TF.
+    relative_localizer turns marker ids (= name+pose of an entity) into named peer poses
+    and a world-anchor correction, so each unit knows where its peers and the world are.
+  </description>
+  <maintainer email="luciuspertis@gmail.com">AIR26 Workshop</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>vision_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

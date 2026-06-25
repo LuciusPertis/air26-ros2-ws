@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<!-- AIR26 Workshop 03 — the patrol unit (for RViz/TF; the Webots .wbt carries the
+     simulated devices). Skid-steer perceptbot base + a front camera + ArUco marker
+     panels on the BACK and RIGHT faces (so peers can see/identify this unit). -->
+<robot name="multibot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="body_x" value="0.30"/>
+  <xacro:property name="body_y" value="0.28"/>
+  <xacro:property name="body_z" value="0.10"/>
+  <xacro:property name="wheel_r" value="0.05"/>
+  <xacro:property name="wheel_dx" value="0.11"/>
+  <xacro:property name="wheel_dy" value="0.16"/>
+
+  <material name="charcoal"><color rgba="0.25 0.25 0.28 1"/></material>
+  <material name="black"><color rgba="0.05 0.05 0.05 1"/></material>
+  <material name="us_blue"><color rgba="0.1 0.4 0.95 1"/></material>
+  <material name="cam_cyan"><color rgba="0.1 0.8 0.85 1"/></material>
+  <material name="marker_white"><color rgba="0.95 0.95 0.95 1"/></material>
+
+  <xacro:macro name="box_inertial" params="mass x y z">
+    <inertial><mass value="${mass}"/>
+      <inertia ixx="${mass*(y*y+z*z)/12.0}" iyy="${mass*(x*x+z*z)/12.0}"
+               izz="${mass*(x*x+y*y)/12.0}" ixy="0" ixz="0" iyz="0"/></inertial>
+  </xacro:macro>
+
+  <xacro:macro name="wheel" params="name px py">
+    <link name="${name}"><visual><origin rpy="1.5708 0 0"/>
+      <geometry><cylinder radius="${wheel_r}" length="0.04"/></geometry>
+      <material name="black"/></visual>
+      <xacro:box_inertial mass="0.2" x="${wheel_r}" y="0.04" z="${wheel_r}"/></link>
+    <joint name="${name}_joint" type="continuous"><parent link="base_link"/>
+      <child link="${name}"/><origin xyz="${px} ${py} ${-body_z/2}"/><axis xyz="0 1 0"/></joint>
+  </xacro:macro>
+
+  <xacro:macro name="ultrasonic" params="name px py yaw">
+    <link name="${name}"><visual><geometry><box size="0.02 0.05 0.03"/></geometry>
+      <material name="us_blue"/></visual>
+      <xacro:box_inertial mass="0.02" x="0.02" y="0.05" z="0.03"/></link>
+    <joint name="${name}_joint" type="fixed"><parent link="base_link"/><child link="${name}"/>
+      <origin xyz="${px} ${py} 0" rpy="0 0 ${yaw}"/></joint>
+  </xacro:macro>
+
+  <link name="base_link">
+    <visual><geometry><box size="${body_x} ${body_y} ${body_z}"/></geometry>
+      <material name="charcoal"/></visual>
+    <collision><geometry><box size="${body_x} ${body_y} ${body_z}"/></geometry></collision>
+    <xacro:box_inertial mass="2.0" x="${body_x}" y="${body_y}" z="${body_z}"/>
+  </link>
+
+  <xacro:wheel name="wheel_fl" px="${ wheel_dx}" py="${ wheel_dy}"/>
+  <xacro:wheel name="wheel_fr" px="${ wheel_dx}" py="${-wheel_dy}"/>
+  <xacro:wheel name="wheel_rl" px="${-wheel_dx}" py="${ wheel_dy}"/>
+  <xacro:wheel name="wheel_rr" px="${-wheel_dx}" py="${-wheel_dy}"/>
+
+  <xacro:ultrasonic name="us_front" px="${ body_x/2}" py="0" yaw="0"/>
+  <xacro:ultrasonic name="us_left"  px="0" py="${ body_y/2}" yaw="1.5708"/>
+  <xacro:ultrasonic name="us_right" px="0" py="${-body_y/2}" yaw="-1.5708"/>
+
+  <!-- === CHECKPOINT: camera === front camera + optical frame -->
+  <link name="camera_link"><visual><geometry><box size="0.02 0.04 0.02"/></geometry>
+    <material name="cam_cyan"/></visual></link>
+  <joint name="camera_joint" type="fixed"><parent link="base_link"/><child link="camera_link"/>
+    <origin xyz="${body_x/2} 0 ${body_z/2+0.02}"/></joint>
+  <link name="camera_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed"><parent link="camera_link"/>
+    <child link="camera_optical_frame"/><origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/></joint>
+  <!-- === END CHECKPOINT: camera === -->
+
+  <!-- === CHECKPOINT: markers === ArUco panels on the BACK (-x) and RIGHT (-y) faces -->
+  <link name="marker_back"><visual><geometry><box size="0.005 0.12 0.12"/></geometry>
+    <material name="marker_white"/></visual></link>
+  <joint name="marker_back_joint" type="fixed"><parent link="base_link"/><child link="marker_back"/>
+    <origin xyz="${-body_x/2} 0 ${body_z/2}"/></joint>
+  <link name="marker_right"><visual><geometry><box size="0.12 0.005 0.12"/></geometry>
+    <material name="marker_white"/></visual></link>
+  <joint name="marker_right_joint" type="fixed"><parent link="base_link"/><child link="marker_right"/>
+    <origin xyz="0 ${-body_y/2} ${body_z/2}"/></joint>
+  <!-- === END CHECKPOINT: markers === -->
+
+</robot>

@@ -1,0 +1,129 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/RectangleArena.proto"
+
+WorldInfo {
+  info [ "AIR26 workshop 03 - multi-bot BT patrol (3 namespaced units + world anchor)." ]
+  basicTimeStep 16
+}
+Viewpoint { orientation -0.4 0.35 0.85 1.7 position 5 -5 5 }
+TexturedBackground { }
+TexturedBackgroundLight { }
+RectangleArena { floorSize 6 6 wallHeight 0.3 }
+
+# world-anchor ArUco (id 99) - a vertical landmark on the +X wall, facing into the arena (-x)
+Solid {
+  translation 2.95 0 0.45
+  rotation 0 0 1 3.14159
+  children [ Shape {
+      appearance PBRAppearance { baseColorMap ImageTexture { url [ "textures/anchor.png" ] } metalness 0 roughness 1 }
+      geometry Box { size 0.02 0.5 0.5 } } ]
+  name "world_anchor"
+}
+
+DEF R1 Robot {
+  translation 0.7 0 0.06
+  rotation 0 0 1 0
+  name "r1"
+  controller "<extern>"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.25 0.25 0.28 metalness 0 roughness 1 } geometry Box { size 0.30 0.28 0.10 } }
+    Camera { translation 0.15 0 0.04 name "camera" width 320 height 240 fieldOfView 1.0 }
+    DistanceSensor { translation 0.15 0 0 name "us_front" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    DistanceSensor { translation 0 0.14 0 rotation 0 0 1 1.5708 name "us_left" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    DistanceSensor { translation 0 -0.14 0 rotation 0 0 1 -1.5708 name "us_right" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    Pose { translation -0.153 0 0.06 children [ Shape { appearance PBRAppearance { baseColorMap ImageTexture { url [ "textures/r1_back.png" ] } metalness 0 roughness 1 } geometry Box { size 0.006 0.12 0.12 } } ] }
+    Pose { translation 0 -0.143 0.06 children [ Shape { appearance PBRAppearance { baseColorMap ImageTexture { url [ "textures/r1_right.png" ] } metalness 0 roughness 1 } geometry Box { size 0.12 0.006 0.12 } } ] }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor 0.11 0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_fl_motor" maxVelocity 20 } ]
+      endPoint Solid { translation 0.11 0.16 -0.05 rotation 1 0 0 1.5708
+        children [ DEF WHEEL Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 } geometry Cylinder { height 0.04 radius 0.05 } } ]
+        name "wheel_fl" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor 0.11 -0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_fr_motor" maxVelocity 20 } ]
+      endPoint Solid { translation 0.11 -0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_fr" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor -0.11 0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_rl_motor" maxVelocity 20 } ]
+      endPoint Solid { translation -0.11 0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_rl" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor -0.11 -0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_rr_motor" maxVelocity 20 } ]
+      endPoint Solid { translation -0.11 -0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_rr" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+  ]
+  boundingObject Box { size 0.30 0.28 0.10 }
+  physics Physics { density -1 mass 2.0 }
+}
+
+DEF R2 Robot {
+  translation 0.0 0 0.06
+  rotation 0 0 1 0
+  name "r2"
+  controller "<extern>"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.25 0.25 0.28 metalness 0 roughness 1 } geometry Box { size 0.30 0.28 0.10 } }
+    Camera { translation 0.15 0 0.04 name "camera" width 320 height 240 fieldOfView 1.0 }
+    DistanceSensor { translation 0.15 0 0 name "us_front" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    DistanceSensor { translation 0 0.14 0 rotation 0 0 1 1.5708 name "us_left" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    DistanceSensor { translation 0 -0.14 0 rotation 0 0 1 -1.5708 name "us_right" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    Pose { translation -0.153 0 0.06 children [ Shape { appearance PBRAppearance { baseColorMap ImageTexture { url [ "textures/r2_back.png" ] } metalness 0 roughness 1 } geometry Box { size 0.006 0.12 0.12 } } ] }
+    Pose { translation 0 -0.143 0.06 children [ Shape { appearance PBRAppearance { baseColorMap ImageTexture { url [ "textures/r2_right.png" ] } metalness 0 roughness 1 } geometry Box { size 0.12 0.006 0.12 } } ] }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor 0.11 0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_fl_motor" maxVelocity 20 } ]
+      endPoint Solid { translation 0.11 0.16 -0.05 rotation 1 0 0 1.5708
+        children [ DEF WHEEL Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 } geometry Cylinder { height 0.04 radius 0.05 } } ]
+        name "wheel_fl" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor 0.11 -0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_fr_motor" maxVelocity 20 } ]
+      endPoint Solid { translation 0.11 -0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_fr" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor -0.11 0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_rl_motor" maxVelocity 20 } ]
+      endPoint Solid { translation -0.11 0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_rl" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor -0.11 -0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_rr_motor" maxVelocity 20 } ]
+      endPoint Solid { translation -0.11 -0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_rr" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+  ]
+  boundingObject Box { size 0.30 0.28 0.10 }
+  physics Physics { density -1 mass 2.0 }
+}
+
+DEF R3 Robot {
+  translation -0.7 0 0.06
+  rotation 0 0 1 0
+  name "r3"
+  controller "<extern>"
+  children [
+    Shape { appearance PBRAppearance { baseColor 0.25 0.25 0.28 metalness 0 roughness 1 } geometry Box { size 0.30 0.28 0.10 } }
+    Camera { translation 0.15 0 0.04 name "camera" width 320 height 240 fieldOfView 1.0 }
+    DistanceSensor { translation 0.15 0 0 name "us_front" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    DistanceSensor { translation 0 0.14 0 rotation 0 0 1 1.5708 name "us_left" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    DistanceSensor { translation 0 -0.14 0 rotation 0 0 1 -1.5708 name "us_right" lookupTable [ 0 0 0, 3 3 0 ] type "generic" }
+    Pose { translation -0.153 0 0.06 children [ Shape { appearance PBRAppearance { baseColorMap ImageTexture { url [ "textures/r3_back.png" ] } metalness 0 roughness 1 } geometry Box { size 0.006 0.12 0.12 } } ] }
+    Pose { translation 0 -0.143 0.06 children [ Shape { appearance PBRAppearance { baseColorMap ImageTexture { url [ "textures/r3_right.png" ] } metalness 0 roughness 1 } geometry Box { size 0.12 0.006 0.12 } } ] }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor 0.11 0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_fl_motor" maxVelocity 20 } ]
+      endPoint Solid { translation 0.11 0.16 -0.05 rotation 1 0 0 1.5708
+        children [ DEF WHEEL Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 } geometry Cylinder { height 0.04 radius 0.05 } } ]
+        name "wheel_fl" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor 0.11 -0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_fr_motor" maxVelocity 20 } ]
+      endPoint Solid { translation 0.11 -0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_fr" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor -0.11 0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_rl_motor" maxVelocity 20 } ]
+      endPoint Solid { translation -0.11 0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_rl" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+    HingeJoint { jointParameters HingeJointParameters { axis 0 1 0 anchor -0.11 -0.16 -0.05 }
+      device [ RotationalMotor { name "wheel_rr_motor" maxVelocity 20 } ]
+      endPoint Solid { translation -0.11 -0.16 -0.05 rotation 1 0 0 1.5708 children [ USE WHEEL ]
+        name "wheel_rr" boundingObject USE WHEEL physics Physics { density -1 mass 0.2 } } }
+  ]
+  boundingObject Box { size 0.30 0.28 0.10 }
+  physics Physics { density -1 mass 2.0 }
+}

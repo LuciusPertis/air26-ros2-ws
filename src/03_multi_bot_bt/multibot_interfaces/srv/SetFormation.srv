@@ -1,0 +1,10 @@
+# Switch a unit's behaviour at runtime (call on each /rN/set_formation).
+#   "random"   = wander with obstacle avoidance (no formation; the baseline)
+#   "convoy"   = column: follow the BACK marker of the unit ahead; distance from a
+#                fused US + ArUco estimate (US fast/smooth, ArUco identity + recalibration)
+#   "parallel" = abreast: ArUco acquires the neighbour's pose, DDS anchor slots me in,
+#                then the side ultrasonic holds the lateral gap once the neighbour is at 90°
+string formation
+---
+bool success
+string message
