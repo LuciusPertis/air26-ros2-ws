@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>vla_so101_description</name>
+  <version>0.1.0</version>
+  <description>
+    AIR26 workshop 07 (VLA) — SO-ARM100/101 tabletop scene for the SmolVLA demo: the MuJoCo
+    Menagerie SO-ARM100 arm (6 position joints = the SO-101 action space) + a table, three
+    graspable/stackable cubes, and front/top cameras. Reference meshes + scene only.
+  </description>
+  <maintainer email="luciuspertis@gmail.com">AIR26 Workshop</maintainer>
+  <license>Apache-2.0</license>
+  <exec_depend>rviz2</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

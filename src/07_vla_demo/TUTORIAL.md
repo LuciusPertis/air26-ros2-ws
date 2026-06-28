@@ -1,119 +1,70 @@
-# Tutorial 07 — A tiny VLA: how "Δθ" drives a robot through ROS2
+# Project 07 — VLA demo: student walkthrough
 
-You type a command like **"wave"**. A little **VLA** ("brain") turns it into
-**delta-theta** — how much to nudge each joint — and ROS2 carries those numbers to a
-robot arm that moves. The *same* arm runs in **three simulators**: RViz, Gazebo and
-MuJoCo. The whole point is to *see* the action travel through ROS2.
+Run a **real Vision-Language-Action model** (SmolVLA-450M) on a **SO-101 (SO-ARM100)** arm at
+a tabletop in **MuJoCo**, with **RViz** showing what the model sees. You type an instruction;
+the model turns camera + instruction + joint state into robot joint commands.
 
-> **VLA = Vision-Language-Action.** Here the **Language** is what you type, the **Action**
-> is delta-theta, and we leave a **Vision** hook for later. Our brain is a tiny stand-in
-> (no GPU needed) — but it plugs into the same interface a real model like SmolVLA would.
+> The earlier no-GPU "mini-VLA" toy (scripted brain → 3-DOF arm) is archived under
+> `_archive_mini_vla/`. This tutorial is the real thing.
 
-> **Build first** (do this once, and again after editing a node or commenting out a
-> checkpoint):
-> ```bash
-> cd ~/air26-ros2-ws
-> source /opt/ros/humble/setup.bash
-> colcon build --packages-select vla_arm_description vla_demo
-> source install/setup.bash
-> ```
-
-> **Setup — run in every new terminal:**
-> ```bash
-> source /opt/ros/humble/setup.bash
-> source ~/air26-ros2-ws/install/setup.bash
-> ```
-
----
-
-## The big picture
-
-```
- you type            the brain                THE STAR TOPIC          adds the nudges up        a simulator
-/instruction  ->   [ vla_brain ]   ->     /delta_theta        ->    [ theta_integrator ]  ->   moves the arm
-  "wave"            mini-VLA              (Δθ per joint)              theta += Δθ  -> /joint_command
-```
-
-The arm has **3 joints**, each a different colour:
-| Joint | Colour | Motion |
-|-------|--------|--------|
-| `joint1` (θ1) | blue | base turns left/right |
-| `joint2` (θ2) | orange | shoulder up/down |
-| `joint3` (θ3) | green | elbow bend/straighten |
-| tip | red | the "hand" |
-
-**Instructions you can type:** `up` `down` `left` `right` `bend` `straighten` `wave`
-`circle` `home` `stop`.
-
----
-
-## 1 · RViz (the simplest — no physics)
-
+## 0. One-time setup
+SmolVLA needs `torch` + `lerobot` (heavy, and they clash with the workspace's pinned numpy),
+so they live in an **isolated venv**. See `SETUP.md` for the full commands — in short:
 ```bash
-ros2 launch vla_demo rviz.launch.py
+python3 -m venv --system-site-packages ~/vla_venv
+source ~/vla_venv/bin/activate
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install "lerobot[smolvla]"
+pip install "numpy<2"
+deactivate
 ```
-A second terminal — **make it move**, and **watch the action**:
+
+## 1. Build & run (this is the whole demo — one launch)
 ```bash
-ros2 topic pub /instruction std_msgs/String "{data: wave}"     # the elbow waggles
-ros2 topic echo /delta_theta                                   # <-- watch the numbers!
+cd ~/air26-ros2-ws && source /opt/ros/humble/setup.bash
+colcon build --packages-select vla_so101_description vla_so101_demo
+source install/setup.bash
+
+ros2 launch vla_so101_demo vla.launch.py instruction:='pick up the red cube'
 ```
-Try `up`, then `home` (it drives back to zero). The numbers on `/delta_theta` ARE the
-action the brain is sending — that's the lesson in one screen.
+That single launch starts **everything**: MuJoCo (the SO-101 tabletop, via `mujoco_driver`),
+the **SmolVLA** policy (in the venv), the instruction publisher, and **RViz** (showing the
+front camera = the model's eye). There is no separate "mujoco launch" — MuJoCo runs *inside*
+`mujoco_driver`. Headless? add `use_rviz:=false`.
 
-> **Checkpoint:** open `vla_demo/launch/rviz.launch.py`, comment out the `brain` block,
-> rebuild, re-run → nothing publishes `/delta_theta`, the arm never moves. Put it back →
-> it works again. (Same idea for the `integrator` block.)
+> **First run downloads ~2 GB** (`smolvla_base` + its SmolVLM2 backbone) to `~/.cache/huggingface`.
 
----
+## 2. What you'll see
+- A MuJoCo window: the SO-101 arm over a table with three cubes (red / green / blue).
+- RViz: the front-camera image the model receives.
+- The arm **reacts to the instruction** and moves.
 
-## 2 · MuJoCo (real physics, lightweight)
+**CPU timing (no GPU here):** the model loads (~20 s) then thinks for **~25 s** to produce a
+50-step action chunk, executes it (~10 s of motion), then thinks again. So expect **motion in
+bursts with ~25 s pauses**. A GPU makes it real-time.
 
+## 3. Change the instruction live
 ```bash
-ros2 launch vla_demo mujoco.launch.py                 # opens the MuJoCo viewer
-# headless box? use:  MUJOCO_GL=egl ros2 launch vla_demo mujoco.launch.py use_viewer:=false
+ros2 topic pub /instruction std_msgs/String "{data: 'stack the blue cube on the red cube'}"
+ros2 topic pub /instruction std_msgs/String "{data: 'move the gripper to the green cube'}"
 ```
-Same instructions, same `/delta_theta` — but now a **physics engine** moves the arm, so
-it has weight and momentum. Type `circle` and watch the base + shoulder trace a circle.
-
-> The exact same brain and integrator drive this — only the last box in the diagram
-> changed. That's the point of ROS2: swap the robot, keep the pipeline.
-
----
-
-## 3 · Gazebo (full robot simulator + ros2_control)
-
+Watch `/joint_command` (the model's output) and `/joint_states` (the arm following it):
 ```bash
-ros2 launch vla_demo gazebo.launch.py                 # GUI for the room
-# headless check:  ros2 launch vla_demo gazebo.launch.py gz_args:='-r -s -v1 empty.sdf'
+ros2 topic echo /joint_command      # 6 SO-101 joint targets from SmolVLA
+ros2 topic echo /joint_states       # the arm's actual joints
 ```
-Here a real **ros2_control** position controller (running inside Gazebo) moves the joints.
-Check it came up:
-```bash
-ros2 control list_controllers      # joint_state_broadcaster + position_controller -> active
-ros2 topic pub /instruction std_msgs/String "{data: up}"
-```
-Now `/delta_theta` → `/joint_command` → `/position_controller/commands` → the arm. You can
-follow the action through every hop with `ros2 topic echo`.
 
-> **Checkpoint:** in `gazebo.launch.py`, comment out the `controllers` block → the arm
-> spawns but never moves (no controller to drive it).
+## 4. ⚠️ Important: what works and what doesn't
+This uses **`smolvla_base`**, a *generalist base checkpoint*. It runs fully end-to-end — real
+text + vision + state → SmolVLA → SO-101 joint targets → MuJoCo + RViz, and the arm moves from
+your instructions. But it is **not fine-tuned for this scene**, so it **won't reliably grasp or
+stack** — the camera view, objects, and action calibration don't match its training data.
+That's expected: this demo shows a *real VLA properly plumbed through ROS 2*. To get actual
+manipulation you'd fine-tune SmolVLA on demonstrations of this exact setup (a separate,
+GPU-heavy effort).
 
----
-
-## How the "brain" works (for the curious)
-
-`vla_demo/policies/scripted.py` is the whole VLA: it reads the instruction word and
-returns a small Δθ each tick (e.g. `wave` → a sine wave on the elbow; `home` → drive every
-joint toward zero). Swap it for a real learned model by implementing the same
-`predict(instruction, theta, image)` method — see `policies/smolvla_adapter.py`.
-
-> The brain uses the **commanded** joint angles (`/joint_command`) as its sense of "where
-> the arm is", which keeps it stable. A real robot VLA would use the measured joint
-> angles plus a controller — a nice thing to explain to older kids.
-
----
-
-### What you learned
-An **action** (delta-theta) is just numbers on a ROS2 **topic**. The brain produces them,
-ROS2 carries them, an integrator adds them up, and *any* simulator turns them into motion.
-Same pipeline, three robots.
+## 5. Make it yours
+- Edit the scene (`vla_so101_description/mjcf/tabletop_scene.xml`): move/recolor cubes, add
+  more, change the camera.
+- Tune rates in `vla_so101_demo/.../smolvla_node.py` (`inference_rate`) / `mujoco_driver.py`.
+- Swap `checkpoint:=<a fine-tuned SO-101 SmolVLA>` on the launch to try a task-trained model.

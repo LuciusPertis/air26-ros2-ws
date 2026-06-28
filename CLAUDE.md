@@ -69,8 +69,9 @@ ros2 run <package_name> <node_name>
 | 04_stretch-hr-se3 | `stretch_se3_control` | Python | Part B control demos: square_drive, lift_arm, head_scan, wrist_gripper, wake_up (checkpoint-marked) |
 | 04_stretch-hr-se3 | `stretch_se3_nav` | Python | Part C Nav2: `mapping.launch.py` (slam_toolbox) + `navigation.launch.py` (AMCL+Nav2), sim-tuned params, cmd_vel_relay, waypoint_demo |
 | 04_stretch-hr-se3 | `stretch_se3_moveit2` | C++/Py | Part D MoveIt2: hand-generated config (SRDF via `scripts/generate_srdf.py`), `trajectory_bridge` (l0-l3→wrist_extension), `move_group.launch.py`, C++ `reach_demo` |
-| 07_vla_demo | `vla_arm_description` | Python | simple 3-DOF arm shared by all sims: `arm.urdf.xacro` (RViz/Gazebo, `use_gz_control`), `arm.mjcf` (MuJoCo), `controllers.yaml`, RViz |
-| 07_vla_demo | `vla_demo` | Python | mini-VLA pipeline: `vla_brain` (instruction→/delta_theta), `theta_integrator`, `mujoco_driver`, `gz_command_relay`, pluggable `policies/`, launch for rviz/mujoco/gazebo |
+| 07_vla_demo | `vla_so101_description` | Python | SO-ARM100/101 (vendored MuJoCo Menagerie `trs_so_arm100`) tabletop scene: arm + table + 3 graspable cubes + front/top cameras |
+| 07_vla_demo | `vla_so101_demo` | Python | **real SmolVLA-450M** demo: `mujoco_driver` (SO-101 tabletop, sys python), `smolvla_node` (lerobot SmolVLA, **venv** python), `instruction_pub`, RViz, `vla.launch.py` |
+| 07_vla_demo | _archived_ `_archive_mini_vla/` | Python | original no-GPU mini-VLA toy (`vla_demo` + `vla_arm_description`); `COLCON_IGNORE`'d, kept for reference |
 | 05_perception | `perceptbot_interfaces` | msgs | `SetBehavior.srv` (1-6), `CheckOpenings.srv`, `EscapeObstacle.action` (from 02) + `ApproachMarker.action` |
 | 05_perception | `perceptbot_description` | Python | project-02 skid-steer base + front camera link (`perceptbot.urdf.xacro`) for RViz/TF |
 | 05_perception | `perceptbot_perception` | Python | `camera_processor` (image→`/camera/mean_intensity`+`mean_color`), `aruco_detector` (image→`vision_msgs/Detection2DArray`+overlay), `mjpeg_bridge` (ESP32-CAM WiFi MJPEG→`/camera/image_raw`) |
@@ -120,11 +121,16 @@ ros2 run <package_name> <node_name>
 > `src/05_perception/{THEORY,PLAN,TUTORIAL,SETUP}.md`. Run: `ros2 launch perceptbot_sim
 > {webots,mujoco,gazebo}.launch.py` + `ros2 launch perceptbot_behaviors behaviors.launch.py`.
 
-> **07 notes:** demonstrates "Δθ through ROS2" with a pluggable mini-VLA (no GPU/torch;
-> real-VLA hook in `policies/smolvla_adapter.py`). One arm, three sims (RViz/Gazebo
-> [Ignition Fortress + ros2_control]/MuJoCo). Provisioning + gotchas in
-> `src/07_vla_demo/SETUP.md`. Star topic: `/delta_theta`. Run: `ros2 launch vla_demo
-> rviz.launch.py`.
+> **07 notes:** the **real VLA** demo — `vla_so101_demo` runs **SmolVLA-450M** (lerobot) on a
+> **SO-101 (SO-ARM100)** MuJoCo tabletop with graspable cubes + **RViz** (camera feed):
+> text+camera+state → 6 joint targets. SmolVLA lives in an isolated venv (`/home/lsp/vla_venv`;
+> torch/lerobot) to protect the numpy-1.24 pin; **CPU inference ~25 s/chunk** (bursts). Base
+> `smolvla_base` (not fine-tuned → moves but won't reliably grasp; honest plumbing demo). **One
+> launch** = MuJoCo+SmolVLA+RViz (no separate mujoco launch): `ros2 launch vla_so101_demo
+> vla.launch.py instruction:='pick up the red cube'`. Docs:
+> `src/07_vla_demo/{TUTORIAL,SETUP,PLAN}.md` + `vla_so101_demo/README.md`.
+> The original no-GPU mini-VLA toy (Δθ pipeline, 3 sims) is **archived** under
+> `src/07_vla_demo/_archive_mini_vla/` (`COLCON_IGNORE`).
 
 ## Adding New Projects
 

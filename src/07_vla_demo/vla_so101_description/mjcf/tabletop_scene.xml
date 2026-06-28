@@ -1,0 +1,48 @@
+<!-- AIR26 Workshop 07 (VLA) — SO-ARM100/101 tabletop scene for the SmolVLA demo.
+     Includes the MuJoCo Menagerie SO-ARM100 arm (6 position joints = SO-101 action space)
+     and adds a table, three graspable/stackable cubes (free joints), a front camera (the
+     VLA's eye) and a wrist camera. Camera names are remapped to SmolVLA's expected image
+     keys in the driver. -->
+<mujoco model="so101_tabletop">
+  <include file="so_arm100.xml"/>
+
+  <statistic center="0.15 0 0.08" extent="0.6"/>
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.4 0.4 0.4" specular="0 0 0"/>
+    <global azimuth="120" elevation="-25"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="256" height="1536"/>
+    <texture type="2d" name="wood" builtin="flat" rgb1="0.65 0.5 0.35" width="64" height="64"/>
+    <material name="table" rgba="0.65 0.5 0.35 1" reflectance="0.05"/>
+    <material name="red" rgba="0.85 0.15 0.15 1"/>
+    <material name="green" rgba="0.15 0.7 0.2 1"/>
+    <material name="blue" rgba="0.15 0.35 0.85 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0.2 0 1.2" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
+
+    <!-- table top: the arm base sits on it (z=0 surface) -->
+    <geom name="table" type="box" pos="0.15 0 -0.02" size="0.30 0.30 0.02" material="table"/>
+
+    <!-- the VLA's eye: a front camera looking back/down at the workspace (~0.15,0,0.03) -->
+    <camera name="front" pos="0.5 0 0.32" xyaxes="0 1 0 -0.64 0 0.77" fovy="55"/>
+    <camera name="top" pos="0.15 0 0.6" xyaxes="1 0 0 0 1 0" fovy="55"/>
+
+    <!-- three graspable / stackable cubes (3 cm, free joints) -->
+    <body name="cube_red" pos="0.18 0.08 0.015">
+      <freejoint/>
+      <geom type="box" size="0.015 0.015 0.015" material="red" mass="0.02"/>
+    </body>
+    <body name="cube_green" pos="0.22 -0.06 0.015">
+      <freejoint/>
+      <geom type="box" size="0.015 0.015 0.015" material="green" mass="0.02"/>
+    </body>
+    <body name="cube_blue" pos="0.12 -0.02 0.015">
+      <freejoint/>
+      <geom type="box" size="0.015 0.015 0.015" material="blue" mass="0.02"/>
+    </body>
+  </worldbody>
+</mujoco>

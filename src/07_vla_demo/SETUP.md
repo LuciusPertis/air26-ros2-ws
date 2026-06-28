@@ -1,65 +1,56 @@
-# Project 07 — provisioning & reproducible setup
+# Project 07 — provisioning & setup (real SmolVLA SO-101 demo)
 
-One-time machine setup for the VLA demo. Build/run is plain colcon after this.
+> The original no-GPU mini-VLA toy is archived under `_archive_mini_vla/` (its own setup notes
+> live there). This file covers the **real SmolVLA** demo.
 
-## 0. Target system
-- ROS2 Humble, no GPU. MuJoCo python (3.2.6) + xacro/rviz already present (from project 04).
-- **Gazebo + ros2_control were NOT installed** → §1 provisions them.
-- No `torch`/`transformers` → the "VLA" is the lightweight `ScriptedPolicy`, not a real
-  model (a real one like SmolVLA-450M is GB-scale, slow on CPU, and trained for a specific
-  arm). The `Policy` interface lets a real model drop in later — see
-  `vla_demo/policies/smolvla_adapter.py`.
-
-## 1. Install Gazebo (Ignition Fortress) + ros2_control
+## 1. SmolVLA stack — isolated venv (done on the dev box 2026-06-25)
+`torch` + `lerobot` are heavy and want `numpy>=2`, which breaks the workspace's pinned
+`numpy 1.24` (ROS Humble / rclpy). So they go in a **dedicated venv** with
+`--system-site-packages` (so it still sees `rclpy` + ROS messages); the system Python and the
+other demos are untouched.
 ```bash
-sudo apt-get install -y \
-  ros-humble-ros-gz ros-humble-gz-ros2-control \
-  ros-humble-ros2-control ros-humble-ros2-controllers
+python3 -m venv --system-site-packages /home/lsp/vla_venv
+source /home/lsp/vla_venv/bin/activate
+pip install --upgrade pip wheel setuptools
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu  # no GPU here
+pip install "lerobot[smolvla]"
+pip install "numpy<2"      # re-pin for rclpy (ends at 1.26.4; rerun/opencv "want >=2" warnings are harmless)
+deactivate
 ```
-Versions pulled on this machine:
-| Package | Version |
-|---------|---------|
-| ros-humble-ros-gz (ros_gz_sim/bridge) | 0.244.24 |
-| Ignition Gazebo (libignition-gazebo6) | 6.18.0  (**Fortress**, binary `ign gazebo`) |
-| ros-humble-gz-ros2-control | 0.7.19 |
-| ros-humble-ros2-control | 2.54.0 |
-| ros-humble-ros2-controllers | 2.53.1 |
-
-> Humble pairs with **Ignition Fortress**, not the newer `gz sim`. The binary is
-> `ign gazebo`; `ros_gz_sim`'s `gz_sim.launch.py` wraps it (arg `gz_args`).
-
-## 2. Build
+Sanity:
 ```bash
-cd ~/air26-ros2-ws
-source /opt/ros/humble/setup.bash
-colcon build --packages-select vla_arm_description vla_demo
+/home/lsp/vla_venv/bin/python -c "from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy; print('ok')"
+```
+- **lerobot 0.4.x** import path is `lerobot.policies.smolvla...` (not `lerobot.common...`).
+- First policy load downloads `lerobot/smolvla_base` + `SmolVLM2-500M` backbone (~2 GB) to
+  `~/.cache/huggingface`.
+
+## 2. Robot model
+SO-ARM100/101 is vendored from **MuJoCo Menagerie** (`trs_so_arm100`) into
+`vla_so101_description/mjcf/` (+ `assets/*.stl`). The model's keyframe was removed (the
+tabletop adds free-joint cubes → `nq` changes → a 6-dof keyframe is invalid); the home pose is
+set in `mujoco_driver.py`.
+
+## 3. Build & run
+```bash
+cd ~/air26-ros2-ws && source /opt/ros/humble/setup.bash
+colcon build --packages-select vla_so101_description vla_so101_demo
 source install/setup.bash
+ros2 launch vla_so101_demo vla.launch.py instruction:='pick up the red cube'   # add use_rviz:=false for headless
 ```
+One launch = MuJoCo (`mujoco_driver`) + SmolVLA (`smolvla_node`, venv) + `instruction_pub` +
+RViz. The launch runs `smolvla_node` with the venv interpreter via `ExecuteProcess`
+(`/home/lsp/vla_venv/bin/python`); everything else is plain ROS python.
 
-## 3. Smoke test (all verified headless)
-```bash
-# RViz pipeline (no physics)
-ros2 launch vla_demo rviz.launch.py use_rviz:=false
-ros2 topic pub --once /instruction std_msgs/String "{data: up}"
-ros2 topic echo /delta_theta            # the star topic streams
-# MuJoCo
-MUJOCO_GL=egl ros2 launch vla_demo mujoco.launch.py use_viewer:=false
-# Gazebo (headless server)
-ros2 launch vla_demo gazebo.launch.py gz_args:='-r -s -v1 empty.sdf'
-ros2 control list_controllers           # joint_state_broadcaster + position_controller active
-```
-
-## 4. Gotchas actually hit (and the fixes, baked into the repo)
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| `xacro: not well-formed (invalid token)` | `--` inside an XML comment (ASCII-art arrows) | XML comments can't contain `--`; reworded |
-| gz plugin not found / wrong system | Fortress uses the **Ignition** names | use `ign_ros2_control/IgnitionSystem` + `ign_ros2_control::IgnitionROS2ControlPlugin`, filename `gz_ros2_control-system` (both names ship in `libgz_ros2_control-system.so`) |
-| `UnboundLocalError: 'mujoco'` | `import mujoco.viewer` inside a method shadows the module name | `from mujoco import viewer as mj_viewer` |
-| `home` overshoots in Gazebo (joint races past 0) | brain read **measured** `/joint_states` (laggy under physics) → unstable closed loop | brain reads **commanded** `/joint_command` instead → stable |
-| `A message was lost!!!` on `ros2 topic echo /joint_states` | echo QoS vs publisher QoS mismatch | cosmetic (echo-side only); pipeline unaffected |
-
-## 5. Performance notes (no GPU)
-- Physics (MuJoCo, Gazebo) is fine on CPU — the scene is one tiny arm.
-- Gazebo **GUI** uses software GL (llvmpipe) and is slow to open; the control path is
-  verified with the headless server (`-s`). The GUI is for the kids' display.
-- MuJoCo: `MUJOCO_GL=egl` for offscreen, or `use_viewer:=true` on a real display.
+## 4. Notes / gotchas
+- **No GPU → CPU**: load ~20 s (cached; ~3 min cold), first inference ~25 s per 50-step chunk,
+  then instant until the chunk drains → arm moves in bursts. Set `device:=cuda` if you ever
+  have a GPU.
+- SmolVLA wants `observation.state`(6) + **three** cameras (`camera1/2/3`, 3×256×256) +
+  `action`(6); the driver's single front render is fed to all three slots.
+- Language must be tokenised by the policy's preprocessor
+  (`make_smolvla_pre_post_processors`) — `select_action` does not auto-tokenise. Base ships no
+  stats → identity normalisation for state/action (VISUAL is IDENTITY).
+- Benign `RTPS_TRANSPORT_SHM` warnings appear headless; comms still work.
+- **It will not reliably grasp** — `smolvla_base` is a base model (not fine-tuned for this
+  scene). See TUTORIAL §4.
