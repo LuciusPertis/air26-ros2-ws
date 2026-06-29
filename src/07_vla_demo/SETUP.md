@@ -3,35 +3,35 @@
 One-time machine setup for the VLA demo. Build/run is plain colcon after this.
 
 ## 0. Target system
-- ROS2 Humble, no GPU. MuJoCo python (3.2.6) + xacro/rviz already present (from project 04).
+- ROS2 Jazzy, no GPU. MuJoCo python (3.2.6) + xacro/rviz already present (from project 04).
 - **Gazebo + ros2_control were NOT installed** → §1 provisions them.
 - No `torch`/`transformers` → the "VLA" is the lightweight `ScriptedPolicy`, not a real
   model (a real one like SmolVLA-450M is GB-scale, slow on CPU, and trained for a specific
   arm). The `Policy` interface lets a real model drop in later — see
   `vla_demo/policies/smolvla_adapter.py`.
 
-## 1. Install Gazebo (Ignition Fortress) + ros2_control
+## 1. Install Gazebo Harmonic + ros2_control
 ```bash
 sudo apt-get install -y \
-  ros-humble-ros-gz ros-humble-gz-ros2-control \
-  ros-humble-ros2-control ros-humble-ros2-controllers
+  ros-jazzy-ros-gz ros-jazzy-gz-ros2-control \
+  ros-jazzy-ros2-control ros-jazzy-ros2-controllers
 ```
-Versions pulled on this machine:
+Versions pulled on this machine (verify against your Jazzy/Harmonic install):
 | Package | Version |
 |---------|---------|
-| ros-humble-ros-gz (ros_gz_sim/bridge) | 0.244.24 |
-| Ignition Gazebo (libignition-gazebo6) | 6.18.0  (**Fortress**, binary `ign gazebo`) |
-| ros-humble-gz-ros2-control | 0.7.19 |
-| ros-humble-ros2-control | 2.54.0 |
-| ros-humble-ros2-controllers | 2.53.1 |
+| ros-jazzy-ros-gz (ros_gz_sim/bridge) | (Jazzy) |
+| Gazebo Harmonic (gz-sim8 / `gz sim`) | 8.x (**Harmonic**, binary `gz sim`) |
+| ros-jazzy-gz-ros2-control | (Jazzy) |
+| ros-jazzy-ros2-control | (Jazzy) |
+| ros-jazzy-ros2-controllers | (Jazzy) |
 
-> Humble pairs with **Ignition Fortress**, not the newer `gz sim`. The binary is
-> `ign gazebo`; `ros_gz_sim`'s `gz_sim.launch.py` wraps it (arg `gz_args`).
+> Jazzy pairs with **Gazebo Harmonic** (the modern `gz sim`, not the old `ign gazebo`).
+> The binary is `gz sim`; `ros_gz_sim`'s `gz_sim.launch.py` wraps it (arg `gz_args`).
 
 ## 2. Build
 ```bash
 cd ~/air26-ros2-ws
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 colcon build --packages-select vla_arm_description vla_demo
 source install/setup.bash
 ```
@@ -53,7 +53,7 @@ ros2 control list_controllers           # joint_state_broadcaster + position_con
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `xacro: not well-formed (invalid token)` | `--` inside an XML comment (ASCII-art arrows) | XML comments can't contain `--`; reworded |
-| gz plugin not found / wrong system | Fortress uses the **Ignition** names | use `ign_ros2_control/IgnitionSystem` + `ign_ros2_control::IgnitionROS2ControlPlugin`, filename `gz_ros2_control-system` (both names ship in `libgz_ros2_control-system.so`) |
+| gz plugin not found / wrong system | Harmonic uses the **GazeboSim** names (not the old Ignition ones) | use `gz_ros2_control/GazeboSimSystem` + `gz_ros2_control::GazeboSimROS2ControlPlugin`, filename `gz_ros2_control-system` (ships in `libgz_ros2_control-system.so`) |
 | `UnboundLocalError: 'mujoco'` | `import mujoco.viewer` inside a method shadows the module name | `from mujoco import viewer as mj_viewer` |
 | `home` overshoots in Gazebo (joint races past 0) | brain read **measured** `/joint_states` (laggy under physics) → unstable closed loop | brain reads **commanded** `/joint_command` instead → stable |
 | `A message was lost!!!` on `ros2 topic echo /joint_states` | echo QoS vs publisher QoS mismatch | cosmetic (echo-side only); pipeline unaffected |

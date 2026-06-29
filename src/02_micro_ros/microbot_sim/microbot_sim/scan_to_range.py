@@ -1,6 +1,6 @@
 """scan_to_range — Gazebo helper: 1-beam LaserScan -> sensor_msgs/Range.
 
-Ignition has no direct ultrasonic/Range sensor, so each ultrasonic is modelled as a
+Gazebo (Harmonic) has no direct ultrasonic/Range sensor, so each ultrasonic is modelled as a
 narrow 1-beam gpu_lidar. The ros_gz_bridge gives us a LaserScan; this node converts
 the three of them to the same /ultrasonic/* Range topics the MuJoCo driver publishes,
 so the behaviour nodes see an identical interface either way. (Also a nice little

@@ -10,7 +10,7 @@ here for comparison so students understand *why* each simulator exists.
 All three are physics + sensor simulators that can talk to ROS 2, but they were built with
 different priorities.
 
-| | **Webots** (our target) | **Gazebo** (Sim / Ignition) | **MuJoCo** |
+| | **Webots** (our target) | **Gazebo** (gz sim / Harmonic) | **MuJoCo** |
 |---|---|---|---|
 | Origin | Cyberbotics, education/robotics | OSRF, the ROS ecosystem | DeepMind, RL / contact dynamics |
 | World format | `.wbt` (VRML-like tree) | SDF (XML) | MJCF (XML) |

@@ -3,9 +3,9 @@
 ## Provisioning (done 2026-06-24)
 ```bash
 # Webots R2025a + the ROS-side perception deps
-sudo apt-get install -y ros-humble-webots-ros2 ros-humble-cv-bridge \
-                        ros-humble-vision-msgs ros-humble-image-transport \
-                        ros-humble-compressed-image-transport
+sudo apt-get install -y ros-jazzy-webots-ros2 ros-jazzy-cv-bridge \
+                        ros-jazzy-vision-msgs ros-jazzy-image-transport \
+                        ros-jazzy-compressed-image-transport
 wget https://github.com/cyberbotics/webots/releases/download/R2025a/webots_2025a_amd64.deb
 sudo apt-get install -y ./webots_2025a_amd64.deb     # ~2 GB, installs to /usr/local/webots
 ```
@@ -17,7 +17,7 @@ sudo apt-get install -y ./webots_2025a_amd64.deb     # ~2 GB, installs to /usr/l
 ## Build & run (Webots demo)
 ```bash
 cd ~/air26-ros2-ws
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 colcon build --packages-select perceptbot_interfaces perceptbot_description \
   perceptbot_perception perceptbot_behaviors perceptbot_sim
 source install/setup.bash
@@ -25,7 +25,7 @@ source install/setup.bash
 # terminal 1 — pick ONE embodiment (all expose the same interface):
 ros2 launch perceptbot_sim webots.launch.py            # Webots (primary) — add use_rviz:=true
 ros2 launch perceptbot_sim mujoco.launch.py            # MuJoCo  (reference; B1-5)
-ros2 launch perceptbot_sim gazebo.launch.py            # Gazebo Fortress (reference; B1-5)
+ros2 launch perceptbot_sim gazebo.launch.py            # Gazebo Harmonic (reference; B1-5)
 # terminal 2 — the behaviours (same for every embodiment)
 ros2 launch perceptbot_behaviors behaviors.launch.py
 # switch behaviour live (1-3 obstacle, 4 light, 5 colour, 6 ArUco [Webots/real-cam])
@@ -74,6 +74,6 @@ Verified headless 2026-06-25:
 - Same WiFi/flashing caveats as project 02 firmware (2.4 GHz only; brltty grabs CH340; 5 V).
 
 ## Reference simulators (Gazebo / MuJoCo)
-The demo is **Webots only**. Gazebo (Ignition, installed from project 07) and MuJoCo (3.2.6)
+The demo is **Webots only**. Gazebo (Harmonic, installed from project 07) and MuJoCo (3.2.6)
 are kept for the architecture comparison in `THEORY.md`; no Gazebo/MuJoCo world is built for
 this rover.

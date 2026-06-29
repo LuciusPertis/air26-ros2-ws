@@ -2,8 +2,8 @@
 
 ## Provisioning (done 2026-06-25)
 ```bash
-sudo apt-get install -y ros-humble-py-trees ros-humble-py-trees-ros \
-                        ros-humble-py-trees-ros-interfaces
+sudo apt-get install -y ros-jazzy-py-trees ros-jazzy-py-trees-ros \
+                        ros-jazzy-py-trees-ros-interfaces
 ```
 - Reuses Webots R2025a + `webots_ros2` + `cv_bridge` + `vision_msgs` from project 05.
 - ArUco markers use **`DICT_4X4_250`** (needs id 99 for the world anchor; 4x4_50 only goes to 49).
@@ -11,7 +11,7 @@ sudo apt-get install -y ros-humble-py-trees ros-humble-py-trees-ros \
 
 ## Build & run
 ```bash
-cd ~/air26-ros2-ws && source /opt/ros/humble/setup.bash
+cd ~/air26-ros2-ws && source /opt/ros/jazzy/setup.bash
 colcon build --packages-select multibot_interfaces multibot_description \
   multibot_perception multibot_bt multibot_sim
 source install/setup.bash

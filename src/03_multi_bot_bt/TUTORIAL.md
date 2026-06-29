@@ -7,7 +7,7 @@ first (FSM vs BT, Nav2's BT, DDS discovery).
 
 ## 0. Build & launch
 ```bash
-cd ~/air26-ros2-ws && source /opt/ros/humble/setup.bash
+cd ~/air26-ros2-ws && source /opt/ros/jazzy/setup.bash
 colcon build --packages-select multibot_interfaces multibot_description \
   multibot_perception multibot_bt multibot_sim
 source install/setup.bash
@@ -87,7 +87,7 @@ import py_trees
 # (build the root as in patrol_bt.py, then:)
 py_trees.display.render_dot_tree(root)   # -> patrol_root.svg/.png/.dot
 ```
-> `rqt_py_trees` (GUI) also works if you `apt install ros-humble-rqt-py-trees`; the terminal
+> `rqt_py_trees` (GUI) also works if you `apt install ros-jazzy-rqt-py-trees`; the terminal
 > watcher above needs nothing extra.
 
 ## 8. The Behaviour Tree

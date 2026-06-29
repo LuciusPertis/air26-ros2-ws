@@ -3,7 +3,7 @@
      A small skid-steer rover: cuboid chassis (almost square), 4 driven wheels,
      3 ultrasonic range sensors (front/left/right), and labelled motor / MCU /
      battery cuboids so kids can point at "the parts". One model for RViz, Gazebo
-     and MuJoCo. Set use_gazebo:=true to add the Ignition DiffDrive + lidar tags. -->
+     and MuJoCo. Set use_gazebo:=true to add the Gazebo (Harmonic) DiffDrive + lidar tags. -->
 <robot name="microbot" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:arg name="use_gazebo" default="false"/>

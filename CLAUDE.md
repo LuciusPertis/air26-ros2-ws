@@ -2,10 +2,10 @@
 
 ## Workspace Overview
 
-ROS2 Humble workspace for a student workshop. All projects are modular and self-contained so students can enable/disable/remove individual features and observe how the system changes.
+ROS2 Jazzy workspace for a student workshop. All projects are modular and self-contained so students can enable/disable/remove individual features and observe how the system changes.
 
 **Working directory:** `/home/lsp/air26-ros2-ws`
-**ROS2 distro:** Humble (`source /opt/ros/humble/setup.bash`)
+**ROS2 distro:** Jazzy (`source /opt/ros/jazzy/setup.bash`)
 **Build system:** colcon (`colcon build --packages-select <pkg>`)
 
 ## Workshop Structure
@@ -46,7 +46,7 @@ self.pub = self.create_publisher(...)
 ## Build & Run
 
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 cd ~/air26-ros2-ws
 colcon build --packages-select basics_py basics_cpp basics_cross
 source install/setup.bash
@@ -110,7 +110,7 @@ ros2 run <package_name> <node_name>
 
 > **05 notes:** the project-02 rover **+ a front ESP32-CAM**; "same base, richer senses".
 > **Three embodiments** (like 07): **Webots** (R2025a, primary), **MuJoCo** and **Gazebo**
-> (Fortress) — all expose the same `/cmd_vel` + `/ultrasonic/*` + `/camera/*` interface, so
+> (Harmonic) — all expose the same `/cmd_vel` + `/ultrasonic/*` + `/camera/*` interface, so
 > behaviours don't change. 3 camera topics: `/camera/{image_raw,mean_intensity,mean_color}`
 > (+ `/aruco/detections`). Six behaviours via `/set_behavior`: 1-3 obstacle (from 02), 4
 > light-seek, 5 colour-seek, 6 ArUco search+approach (`/approach_marker` action). **ArUco (B6)
@@ -122,7 +122,7 @@ ros2 run <package_name> <node_name>
 
 > **07 notes:** demonstrates "Δθ through ROS2" with a pluggable mini-VLA (no GPU/torch;
 > real-VLA hook in `policies/smolvla_adapter.py`). One arm, three sims (RViz/Gazebo
-> [Ignition Fortress + ros2_control]/MuJoCo). Provisioning + gotchas in
+> [Gazebo Harmonic + ros2_control]/MuJoCo). Provisioning + gotchas in
 > `src/07_vla_demo/SETUP.md`. Star topic: `/delta_theta`. Run: `ros2 launch vla_demo
 > rviz.launch.py`.
 

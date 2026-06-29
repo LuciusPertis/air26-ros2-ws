@@ -2,14 +2,14 @@
 
 ## ROS part (this project) — nothing new to install
 Everything the ROS-side demo needs is already present:
-- ROS2 Humble + `sensor_msgs` (Range), `geometry_msgs` (Twist), `nav_msgs`, `tf2_ros`,
+- ROS2 Jazzy + `sensor_msgs` (Range), `geometry_msgs` (Twist), `nav_msgs`, `tf2_ros`,
   `rviz2`, `rqt_graph`, `teleop_twist_keyboard`.
 - MuJoCo python (3.2.6, from project 04).
 
 Build & run:
 ```bash
 cd ~/air26-ros2-ws
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 colcon build --packages-select microbot_interfaces microbot_description microbot_sim microbot_behaviors
 source install/setup.bash
 
@@ -23,9 +23,9 @@ ros2 service call /set_behavior microbot_interfaces/srv/SetBehavior "{behavior: 
 On a GPU-less box use the offscreen viewer path:
 `MUJOCO_GL=egl ros2 launch microbot_sim mujoco.launch.py use_viewer:=false use_rviz:=true`.
 
-## Deferred — Gazebo (Ignition) target
+## Deferred — Gazebo (Harmonic) target
 A second sim was planned (Gazebo Sim, already installed from project 07). It is **not built
-yet**: needs `urdf/microbot.gazebo.xacro` (Ignition `DiffDrive` system + 3 narrow
+yet**: needs `urdf/microbot.gazebo.xacro` (Gazebo `DiffDrive` system + 3 narrow
 `gpu_lidar` ultrasonics), an obstacle world SDF, the `ros_gz` bridge config, and wiring
 `scan_to_range.py` + `gazebo.launch.py`. The MuJoCo+RViz path is a complete demo on its own.
 `urdf/microbot.urdf.xacro` already has the `use_gazebo` arg hook for it.
@@ -38,7 +38,7 @@ nodes run unchanged: the sim swaps out for `micro_ros_agent` + the board.
 
 - **Toolchain:** PlatformIO via the OFFICIAL installer (creates `~/.platformio/penv`; bare
   `pip install platformio` does NOT and breaks the micro-ROS build). `pio` at
-  `~/.platformio/penv/bin/pio`. See firmware README for the `python3.10-venv` + `dbus-x11`
+  `~/.platformio/penv/bin/pio`. See firmware README for the `python3.12-venv` + `dbus-x11`
   prerequisites.
 - **Transport:** flash over USB serial (`pio run -t upload`), run micro-ROS over **WiFi/UDP**.
 - **Reference hardware:** ESP32 DevKit + L298N (skid-steer) + 3× HC-SR04; all pins / WiFi /
@@ -72,7 +72,7 @@ cd src/02_micro_ros/firmware/esp32_microbot
 (NOT in air26-ros2-ws/src) via `micro_ros_setup`:
 ```bash
 mkdir -p ~/uros_ws/src && cd ~/uros_ws
-git clone -b humble https://github.com/micro-ROS/micro_ros_setup src/micro_ros_setup
+git clone -b jazzy https://github.com/micro-ROS/micro_ros_setup src/micro_ros_setup
 rosdep install --from-paths src --ignore-src -y
 colcon build && source install/setup.bash
 ros2 run micro_ros_setup create_agent_ws.sh

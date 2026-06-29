@@ -1,50 +1,50 @@
-# ros_gz_bridge config for the Gazebo (Fortress) perception rover.
-# Maps Gazebo (ignition.msgs) topics <-> ROS 2, so the SAME /cmd_vel, /ultrasonic/* (via
+# ros_gz_bridge config for the Gazebo (Harmonic) perception rover.
+# Maps Gazebo (gz.msgs) topics <-> ROS 2, so the SAME /cmd_vel, /ultrasonic/* (via
 # scan_to_range) and /camera/* interface as Webots/MuJoCo comes out the other side.
 
 - ros_topic_name: "/clock"
   gz_topic_name: "/clock"
   ros_type_name: "rosgraph_msgs/msg/Clock"
-  gz_type_name: "ignition.msgs.Clock"
+  gz_type_name: "gz.msgs.Clock"
   direction: GZ_TO_ROS
 
 - ros_topic_name: "/cmd_vel"
   gz_topic_name: "/cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
-  gz_type_name: "ignition.msgs.Twist"
+  gz_type_name: "gz.msgs.Twist"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "/odom"
   gz_topic_name: "/odom"
   ros_type_name: "nav_msgs/msg/Odometry"
-  gz_type_name: "ignition.msgs.Odometry"
+  gz_type_name: "gz.msgs.Odometry"
   direction: GZ_TO_ROS
 
 # 3 single-beam lidars -> LaserScan (scan_to_range turns these into /ultrasonic/*)
 - ros_topic_name: "/scan_front"
   gz_topic_name: "/scan_front"
   ros_type_name: "sensor_msgs/msg/LaserScan"
-  gz_type_name: "ignition.msgs.LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
   direction: GZ_TO_ROS
 - ros_topic_name: "/scan_left"
   gz_topic_name: "/scan_left"
   ros_type_name: "sensor_msgs/msg/LaserScan"
-  gz_type_name: "ignition.msgs.LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
   direction: GZ_TO_ROS
 - ros_topic_name: "/scan_right"
   gz_topic_name: "/scan_right"
   ros_type_name: "sensor_msgs/msg/LaserScan"
-  gz_type_name: "ignition.msgs.LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
   direction: GZ_TO_ROS
 
 # camera -> /camera/image_raw + /camera/camera_info
 - ros_topic_name: "/camera/image_raw"
   gz_topic_name: "/camera"
   ros_type_name: "sensor_msgs/msg/Image"
-  gz_type_name: "ignition.msgs.Image"
+  gz_type_name: "gz.msgs.Image"
   direction: GZ_TO_ROS
 - ros_topic_name: "/camera/camera_info"
   gz_topic_name: "/camera_info"
   ros_type_name: "sensor_msgs/msg/CameraInfo"
-  gz_type_name: "ignition.msgs.CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
   direction: GZ_TO_ROS

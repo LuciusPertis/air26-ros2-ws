@@ -5,7 +5,7 @@
   <version>0.1.0</version>
   <description>
     AIR26 workshop 02 — simulators for the micro-ROS obstacle-avoider: a MuJoCo driver
-    and a Gazebo (Ignition) bringup, both exposing the same /cmd_vel + /ultrasonic/*
+    and a Gazebo (Harmonic) bringup, both exposing the same /cmd_vel + /ultrasonic/*
     interface the ESP32 will later. Stand-in for the real robot.
   </description>
   <maintainer email="luciuspertis@gmail.com">AIR26 Workshop</maintainer>

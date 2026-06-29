@@ -31,7 +31,7 @@ HC-SR04 right  trig=18 echo=19
 `micro_ros_platformio` builds the micro-ROS library inside PlatformIO's `penv`, so PlatformIO
 must be installed the way that creates it:
 ```bash
-sudo apt-get install -y python3.10-venv dbus-x11   # venv (stripped by Ubuntu) + dbus-launch
+sudo apt-get install -y python3.12-venv dbus-x11   # venv (stripped by Ubuntu) + dbus-launch
 python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py)"
 # pio is then at ~/.platformio/penv/bin/pio  (add to PATH, or use the full path)
 ```
@@ -83,18 +83,18 @@ checkpoint blocks to run fully headless.
 ## 5. Run the micro-ROS Agent on the PC (WiFi/UDP)
 > **On this dev box it's already built** in `~/uros_ws` (native, no Docker). To run:
 > ```bash
-> source /opt/ros/humble/setup.bash && source ~/uros_ws/install/setup.bash
+> source /opt/ros/jazzy/setup.bash && source ~/uros_ws/install/setup.bash
 > ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
 > ```
 
 `micro_ros_agent` isn't in apt; pick one:
 ```bash
 # Docker (simplest):
-docker run -it --rm --net=host microros/micro-ros-agent:humble udp4 --port 8888
+docker run -it --rm --net=host microros/micro-ros-agent:jazzy udp4 --port 8888
 
 # or build it once via micro_ros_setup (separate ws, not air26-ros2-ws/src):
 mkdir -p ~/uros_ws/src && cd ~/uros_ws
-git clone -b humble https://github.com/micro-ROS/micro_ros_setup src/micro_ros_setup
+git clone -b jazzy https://github.com/micro-ROS/micro_ros_setup src/micro_ros_setup
 rosdep install --from-paths src --ignore-src -y
 colcon build && source install/setup.bash
 ros2 run micro_ros_setup create_agent_ws.sh
