@@ -13,14 +13,14 @@ MuJoCo. The whole point is to *see* the action travel through ROS2.
 > checkpoint):
 > ```bash
 > cd ~/air26-ros2-ws
-> source /opt/ros/humble/setup.bash
+> source /opt/ros/jazzy/setup.bash
 > colcon build --packages-select vla_arm_description vla_demo
 > source install/setup.bash
 > ```
 
 > **Setup — run in every new terminal:**
 > ```bash
-> source /opt/ros/humble/setup.bash
+> source /opt/ros/jazzy/setup.bash
 > source ~/air26-ros2-ws/install/setup.bash
 > ```
 

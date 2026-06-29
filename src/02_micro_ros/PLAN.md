@@ -47,7 +47,7 @@ colours. One xacro for RViz/Gazebo (`use_gazebo` arg) + an MJCF for MuJoCo.
 - **DONE & verified (MuJoCo, headless):** robot drives + senses; all three behaviours;
   the full topic→service→action chain (B3 integrated: obstacle → service → action →
   feedback → resume); `/set_behavior` switching.
-- **DEFERRED:** the **Gazebo (Ignition) target** — `microbot.gazebo.xacro` (DiffDrive + 3
+- **DEFERRED:** the **Gazebo (Harmonic) target** — `microbot.gazebo.xacro` (DiffDrive + 3
   gpu_lidar ultrasonics), an obstacle world, the ros_gz bridge, and `scan_to_range` wiring
   + `gazebo.launch.py`. The MuJoCo+RViz path is a complete day-02 demo on its own.
 - **SEPARATE (hardware plan):** micro-ROS Agent + ESP32 flashing/transport.

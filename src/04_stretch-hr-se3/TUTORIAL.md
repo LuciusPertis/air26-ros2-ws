@@ -13,7 +13,7 @@ run **Nav2** and **MoveIt2** tasks — no physical robot required.
 > [`SETUP.md`](SETUP.md); this builds just the authored workshop packages:
 > ```bash
 > cd ~/air26-ros2-ws
-> source /opt/ros/humble/setup.bash
+> source /opt/ros/jazzy/setup.bash
 > colcon build --packages-select \
 >   stretch_se3_bringup stretch_se3_control stretch_se3_nav stretch_se3_moveit2
 > source install/setup.bash
@@ -21,7 +21,7 @@ run **Nav2** and **MoveIt2** tasks — no physical robot required.
 
 > **Setup — run in every new terminal before anything else:**
 > ```bash
-> source /opt/ros/humble/setup.bash
+> source /opt/ros/jazzy/setup.bash
 > source ~/air26-ros2-ws/install/setup.bash
 > export MUJOCO_GL=egl        # offscreen GL — this machine has no GPU
 > ```

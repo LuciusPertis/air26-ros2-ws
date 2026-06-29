@@ -1,6 +1,6 @@
 # AIR26 ROS 2 Student Workshop
 
-A ROS 2 **Humble** workspace of self-contained robotics demos for a student workshop. Each
+A ROS 2 **Jazzy** workspace of self-contained robotics demos for a student workshop. Each
 project under `src/` is one or more ROS 2 packages that compile and run independently, with
 checkpoint-marked feature blocks students can toggle to see how the system changes.
 
@@ -21,7 +21,7 @@ checkpoint-marked feature blocks students can toggle to see how the system chang
 ## Build & run
 
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 cd ~/air26-ros2-ws
 colcon build --packages-select <pkg>...      # or a whole project's packages
 source install/setup.bash

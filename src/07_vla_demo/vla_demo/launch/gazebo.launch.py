@@ -1,4 +1,4 @@
-# AIR26 Workshop 07 — Gazebo (Ignition Fortress) target.
+# AIR26 Workshop 07 — Gazebo (Harmonic) target.
 #   instruction -> vla_brain -> /delta_theta -> theta_integrator -> /joint_command
 #   -> gz_command_relay -> /position_controller/commands -> gz_ros2_control -> arm.
 # gz_ros2_control runs the controller_manager INSIDE Gazebo and publishes the real
@@ -39,7 +39,7 @@ def generate_launch_description():
         package='robot_state_publisher', executable='robot_state_publisher',
         parameters=[{'robot_description': robot_description}, sim_time]))
 
-    # Gazebo (Ignition Fortress)
+    # Gazebo (Harmonic)
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(ros_gz_sim, 'launch', 'gz_sim.launch.py')),
         launch_arguments={'gz_args': LaunchConfiguration('gz_args')}.items()))
@@ -47,7 +47,7 @@ def generate_launch_description():
     # /clock bridge so use_sim_time works
     ld.add_action(Node(
         package='ros_gz_bridge', executable='parameter_bridge', output='screen',
-        arguments=['/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock']))
+        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock']))
 
     # spawn the arm from /robot_description
     spawn = Node(

@@ -7,8 +7,8 @@
 
   <ros2_control name="vla_arm_system" type="system">
     <hardware>
-      <!-- Ignition Fortress hardware system (gz_ros2_control ships both names) -->
-      <plugin>ign_ros2_control/IgnitionSystem</plugin>
+      <!-- Gazebo Harmonic hardware system (gz_ros2_control) -->
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
     </hardware>
     <xacro:macro name="joint_iface" params="name">
       <joint name="${name}">
@@ -27,7 +27,7 @@
 
   <gazebo>
     <plugin filename="gz_ros2_control-system"
-            name="ign_ros2_control::IgnitionROS2ControlPlugin">
+            name="gz_ros2_control::GazeboSimROS2ControlPlugin">
       <parameters>$(find vla_arm_description)/config/controllers.yaml</parameters>
     </plugin>
   </gazebo>

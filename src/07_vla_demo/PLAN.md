@@ -48,7 +48,7 @@ Each joint a different colour so "θ1/θ2/θ3" maps to what moves.
 - **No C++**: gz_ros2_control is configured purely via xacro tags + a controllers.yaml.
 
 ## Build phases (done)
-0. Provision Gazebo (Ignition Fortress) + ros2_control — see `SETUP.md`.
+0. Provision Gazebo (Gazebo Harmonic) + ros2_control — see `SETUP.md`.
 1. `vla_arm_description` (xacro/MJCF/controllers/rviz).
 2. `vla_demo` core + RViz target.
 3. MuJoCo driver + target.

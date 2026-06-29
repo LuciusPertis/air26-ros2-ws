@@ -7,7 +7,7 @@ background.
 
 ## 0. Build & launch
 ```bash
-cd ~/air26-ros2-ws && source /opt/ros/humble/setup.bash
+cd ~/air26-ros2-ws && source /opt/ros/jazzy/setup.bash
 colcon build --packages-select perceptbot_interfaces perceptbot_description \
   perceptbot_perception perceptbot_behaviors perceptbot_sim
 source install/setup.bash

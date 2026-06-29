@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<!-- AIR26 Workshop 05 — Gazebo (Ignition Fortress) world for the perception rover.
+<!-- AIR26 Workshop 05 — Gazebo (Harmonic) world for the perception rover.
      Reference embodiment (Webots is primary). Skid-steer rover via the DiffDrive system
      (2 joints per side), 3 single-beam gpu_lidars = the ultrasonics (bridged LaserScan ->
      scan_to_range -> /ultrasonic/*), and a front camera. Arena targets: a bright panel
@@ -8,14 +8,14 @@
 <sdf version="1.8">
   <world name="perceptbot">
 
-    <plugin filename="ignition-gazebo-physics-system"
-            name="ignition::gazebo::systems::Physics"/>
-    <plugin filename="ignition-gazebo-user-commands-system"
-            name="ignition::gazebo::systems::UserCommands"/>
-    <plugin filename="ignition-gazebo-scene-broadcaster-system"
-            name="ignition::gazebo::systems::SceneBroadcaster"/>
-    <plugin filename="ignition-gazebo-sensors-system"
-            name="ignition::gazebo::systems::Sensors">
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
       <render_engine>ogre2</render_engine>
     </plugin>
 
@@ -140,8 +140,8 @@
       <joint name="wheel_rr_joint" type="revolute"><parent>base_link</parent><child>wheel_rr</child><axis><xyz>0 1 0</xyz></axis></joint>
 
       <!-- skid-steer: 2 joints per side -->
-      <plugin filename="ignition-gazebo-diff-drive-system"
-              name="ignition::gazebo::systems::DiffDrive">
+      <plugin filename="gz-sim-diff-drive-system"
+              name="gz::sim::systems::DiffDrive">
         <left_joint>wheel_fl_joint</left_joint>
         <left_joint>wheel_rl_joint</left_joint>
         <right_joint>wheel_fr_joint</right_joint>

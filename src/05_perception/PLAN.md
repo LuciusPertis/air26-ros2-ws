@@ -41,7 +41,7 @@ safety overlay.
   - **Webots** (primary): `.wbt` world (arena + light panel + green box + ArUco marker +
     pillars), device URDF, `/cmd_vel` skid-steer driver plugin, `webots.launch.py`.
   - **MuJoCo** (reference): `mujoco_driver` (02 base + offscreen camera render), `mujoco.launch.py`.
-  - **Gazebo Fortress** (reference): `perceptbot.sdf` (DiffDrive + 3 gpu_lidars + camera),
+  - **Gazebo Harmonic** (reference): `perceptbot.sdf` (DiffDrive + 3 gpu_lidars + camera),
     `gz_bridge.yaml`, `scan_to_range` (LaserScan→Range), `gazebo.launch.py`.
   - **ArUco (B6) is Webots-sim + real-cam only**; MuJoCo/Gazebo cover B1-5 (MuJoCo can't map a
     flat marker decal onto a box face; kept simple/consistent across both reference sims).

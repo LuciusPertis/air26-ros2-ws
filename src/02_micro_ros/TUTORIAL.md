@@ -11,14 +11,14 @@ obstacle-avoidance **behaviours** — and see *why* ROS has topics, services AND
 > **Build first** (once, and again after editing a node):
 > ```bash
 > cd ~/air26-ros2-ws
-> source /opt/ros/humble/setup.bash
+> source /opt/ros/jazzy/setup.bash
 > colcon build --packages-select microbot_interfaces microbot_description microbot_sim microbot_behaviors
 > source install/setup.bash
 > ```
 
 > **Setup — every new terminal:**
 > ```bash
-> source /opt/ros/humble/setup.bash
+> source /opt/ros/jazzy/setup.bash
 > source ~/air26-ros2-ws/install/setup.bash
 > ```
 

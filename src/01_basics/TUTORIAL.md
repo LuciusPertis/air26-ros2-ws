@@ -6,14 +6,14 @@ Work through each section in order. Every step tells you what to run and what to
 > and again after editing any node or commenting out a checkpoint):
 > ```bash
 > cd ~/air26-ros2-ws
-> source /opt/ros/humble/setup.bash
+> source /opt/ros/jazzy/setup.bash
 > colcon build --packages-select basics_py basics_cpp basics_cross
 > source install/setup.bash
 > ```
 
 > **Setup** — run this once in every new terminal before anything else:
 > ```bash
-> source /opt/ros/humble/setup.bash
+> source /opt/ros/jazzy/setup.bash
 > source ~/air26-ros2-ws/install/setup.bash
 > ```
 

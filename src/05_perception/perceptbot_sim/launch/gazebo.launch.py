@@ -1,4 +1,4 @@
-"""Gazebo (Ignition Fortress) embodiment of the perception rover (reference sim).
+"""Gazebo (Harmonic) embodiment of the perception rover (reference sim).
 
   gz sim (perceptbot.sdf)  -> DiffDrive + 3 gpu_lidars + camera
   ros_gz_bridge            -> /cmd_vel, /scan_*, /camera/*, /odom, /clock

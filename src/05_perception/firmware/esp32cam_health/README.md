@@ -53,7 +53,7 @@ pio device monitor -p /dev/ttyUSB0   # watch the health report
 
 ## Troubleshooting (hit on the dev box 2026-06-24)
 - **No `/dev/ttyUSB0`; pio auto-detects `/dev/ttyS0` (the onboard serial) and fails** — on
-  Ubuntu 22.04 the **`brltty`** braille driver hijacks **CH340** adapters: the port appears
+  Ubuntu 24.04 the **`brltty`** braille driver hijacks **CH340** adapters: the port appears
   then is instantly disconnected (`dmesg`: "interface 0 claimed by brltty"). Fix:
   `sudo apt-get remove brltty`, then unplug/replug the adapter. (CP2102 adapters are
   unaffected — only CH340/CH341.)
