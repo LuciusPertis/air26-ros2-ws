@@ -1,0 +1,27 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Name: SmolVLA camera
+      Topic:
+        Value: /camera/front/image_raw
+        Depth: 5
+        Durability Policy: Volatile
+        Reliability Policy: Reliable
+      Value: true
+  Global Options:
+    Fixed Frame: front_camera
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Value: true
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 720
+  Width: 1000
