@@ -69,6 +69,7 @@ ros2 run <package_name> <node_name>
 | 04_stretch-hr-se3 | `stretch_se3_control` | Python | Part B control demos: square_drive, lift_arm, head_scan, wrist_gripper, wake_up (checkpoint-marked) |
 | 04_stretch-hr-se3 | `stretch_se3_nav` | Python | Part C Nav2: `mapping.launch.py` (slam_toolbox) + `navigation.launch.py` (AMCL+Nav2), sim-tuned params, cmd_vel_relay, waypoint_demo |
 | 04_stretch-hr-se3 | `stretch_se3_moveit2` | C++/Py | Part D MoveIt2: hand-generated config (SRDF via `scripts/generate_srdf.py`), `trajectory_bridge` (l0-l3→wrist_extension), `move_group.launch.py`, C++ `reach_demo` |
+| 06_llm-integration | `llm_integration` | Python | **local Ollama LLM (qwen3:1.7b default, qwen3:4b opt-in) + native tool-calling** → robot motion (MuJoCo, sim-only). Robot-agnostic core (`ollama_agent`, `prompt`, `robot_base`) + adapters `robots/micro.py` (02 rover: `/cmd_vel` raw drive + discrete move/turn/stop) and `robots/stretch.py` (04 Stretch: base drive + `set_lift/arm/head/gripper` via FollowJointTrajectory + mode-switch). One-shot `/llm/command`; warm-ups `chat_terminal`+`ollama_api_demo`; `backend:=mock` offline path; `micro.launch.py`/`stretch.launch.py` include the 02/04 sims |
 | 07_vla_demo | `vla_so101_description` | Python | SO-ARM100/101 (vendored MuJoCo Menagerie `trs_so_arm100`) tabletop scene: arm + table + 3 graspable cubes + front/top cameras |
 | 07_vla_demo | `vla_so101_demo` | Python | **real SmolVLA-450M** demo: `mujoco_driver` (SO-101 tabletop, sys python), `smolvla_node` (lerobot SmolVLA, **venv** python), `instruction_pub`, RViz, `vla.launch.py` |
 | 07_vla_demo | _archived_ `_archive_mini_vla/` | Python | original no-GPU mini-VLA toy (`vla_demo` + `vla_arm_description`); `COLCON_IGNORE`'d, kept for reference |
@@ -120,6 +121,29 @@ ros2 run <package_name> <node_name>
 > over WiFi MJPEG; `mjpeg_bridge` pulls that stream into ROS for ArUco. Docs in
 > `src/05_perception/{THEORY,PLAN,TUTORIAL,SETUP}.md`. Run: `ros2 launch perceptbot_sim
 > {webots,mujoco,gazebo}.launch.py` + `ros2 launch perceptbot_behaviors behaviors.launch.py`.
+
+> **06 notes:** **sim-only (MuJoCo)** LLM→motion. A local **Ollama** instruct model
+> (default **`qwen3:1.7b`**, fast on CPU ~2-3 s; `qwen3:4b` via `model:=` = more
+> accurate but slow) with **native tool-calling** turns ONE natural-language command on
+> `/llm/command` into movement tool calls; the model also returns a natural-language
+> **reply** published on `/llm/response`, and may call a **`respond` (no-action)**
+> tool to answer questions about state without moving. Adds **no new robot** —
+> reuses 02 (rover, base-only `/cmd_vel`) and 04 (Stretch, base + lift/arm/head/
+> gripper via FollowJointTrajectory + per-tool mode-switch). One package
+> `llm_integration`: robot-agnostic `ollama_agent`/`prompt`/`robot_base` + thin
+> `robots/{micro,stretch}.py` adapters; runs under a MultiThreadedExecutor +
+> ReentrantCallbackGroup (blocking agent + action futures coexist). Launches
+> **include** the 02/04 sims (`micro.launch.py`/`stretch.launch.py`). Offline
+> `backend:=mock` (keyword matcher) exercises the full ROS path with no model/GPU;
+> warm-ups `chat_terminal` + `ollama_api_demo`. CPU tuning: `think=False` +
+> `temperature=0`; agent recovers tool-calls a small model prints as JSON text and
+> de-duplicates repeated calls. **Verified:** mock path (rover `/cmd_vel`+US/odom
+> state; Stretch lift 0.59→0.94 m) AND **real Ollama** (`qwen3:1.7b`) on the rover —
+> movement → `turn`+`move_forward` w/ NL reply on `/llm/response`; question →
+> `respond` clean answer, no motion (~2-3 s warm). Ollama installed here (v0.30.11
+> systemd; qwen3:1.7b+4b pulled). Harmless upstream `left_wheel_vel` driver error
+> per joint goal (pre-existing in 04). Docs in
+> `src/06_llm-integration/{PLAN,SETUP,TUTORIAL}.md` + `llm_integration/README.md`.
 
 > **07 notes:** the **real VLA** demo — `vla_so101_demo` runs **SmolVLA-450M** (lerobot) on a
 > **SO-101 (SO-ARM100)** MuJoCo tabletop with graspable cubes + **RViz** (camera feed):

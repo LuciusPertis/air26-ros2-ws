@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>llm_integration</name>
+  <version>0.1.0</version>
+  <description>
+    AIR26 Workshop 06 — natural-language robot control via a local Ollama LLM with
+    native tool-calling. One natural-language instruction on /llm/command is turned
+    into movement tool calls (raw /cmd_vel velocity + discrete primitives) and run
+    on either the project-02 micro_ros rover or the project-04 Stretch SE3 robot in
+    MuJoCo. Includes standalone (no-ROS) Ollama chat and tool-API demos.
+  </description>
+  <maintainer email="luciuspertis@gmail.com">lsp</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>builtin_interfaces</exec_depend>
+
+  <!-- project 02 / 04 sims that our launch files bring up -->
+  <exec_depend>microbot_sim</exec_depend>
+  <exec_depend>stretch_se3_bringup</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
