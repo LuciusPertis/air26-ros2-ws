@@ -42,7 +42,7 @@ ros2 run <package> <node>                     # or ros2 launch <pkg> <file>.laun
 
 📖 **[`src/INSTALL.md`](src/INSTALL.md)** is the full install guide — ROS deps (via rosdep)
 **plus** every non-ROS runtime the demos need: MuJoCo, Webots, Gazebo, Ollama (project 06),
-the SmolVLA venv (project 07), and PlatformIO firmware (projects 02 & 05). Per-project detail
+the SMOLVLA venv (project 07), and PlatformIO firmware (projects 02 & 05). Per-project detail
 stays in each project's `SETUP.md`. Firmware lives under `src/<project>/firmware/` (outside
 colcon, built with PlatformIO).
 
