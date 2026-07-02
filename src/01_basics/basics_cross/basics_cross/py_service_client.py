@@ -7,7 +7,7 @@
 
 import rclpy
 from rclpy.node import Node
-from example_interfaces.srv import AddTwoInts
+from basics_cross.srv import AddTwoInts  # our own service — no example_interfaces
 
 
 class PyServiceClient(Node):
@@ -33,3 +33,7 @@ def main(args=None):
     node.get_logger().info(f'[Python client] Result from C++ server: 3 + 5 = {result.sum}')
     node.destroy_node()
     rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,8 @@
+# CountUp — action defined inside basics_cross
+# (replaces example_interfaces/action/Fibonacci).
+# Goal: count up to `order`. Feedback streams progress; result is the sequence.
+int64 order
+---
+int64[] sequence
+---
+int64[] sequence

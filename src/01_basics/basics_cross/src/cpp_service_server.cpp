@@ -6,9 +6,9 @@
 
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
-#include "example_interfaces/srv/add_two_ints.hpp"
+#include "basics_cross/srv/add_two_ints.hpp"
 
-using AddTwoInts = example_interfaces::srv::AddTwoInts;
+using AddTwoInts = basics_cross::srv::AddTwoInts;
 
 class CppServiceServer : public rclcpp::Node
 {

@@ -7,19 +7,19 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from basics_cross.msg import Greeting  # our own message — no std_msgs
 
 
 class PyTalker(Node):
     def __init__(self):
         super().__init__('py_talker')
-        self.pub = self.create_publisher(String, 'chatter', 10)
+        self.pub = self.create_publisher(Greeting, 'chatter', 10)
         self.timer = self.create_timer(1.0, self.publish_message)
         self.count = 0
         self.get_logger().info('Python talker started — publishing on /chatter')
 
     def publish_message(self):
-        msg = String()
+        msg = Greeting()
         msg.data = f'[Python] Hello from Python! count={self.count}'
         self.pub.publish(msg)
         self.get_logger().info(f'Published: "{msg.data}"')
@@ -32,3 +32,7 @@ def main(args=None):
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
