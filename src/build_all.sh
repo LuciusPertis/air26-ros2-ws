@@ -53,8 +53,9 @@ cd "${WS_ROOT}"
 # --- 1. source ROS -----------------------------------------------------------
 say "Sourcing ROS 2 ${ROS_DISTRO}"
 # shellcheck disable=SC1090
+set +u
 source "/opt/ros/${ROS_DISTRO}/setup.bash"
-
+set -u
 # --- 2. rosdep: install all declared ROS dependencies ------------------------
 if [[ "${RUN_ROSDEP}" == "1" ]]; then
   say "Resolving ROS dependencies with rosdep (from src/)"
