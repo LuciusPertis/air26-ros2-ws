@@ -59,7 +59,7 @@ ros2 run <package_name> <node_name>
 |---------|---------|------|-------|
 | 01_basics | `basics_py` | Python | topic_talker/listener, service_server/client, action_server/client, combined_node |
 | 01_basics | `basics_cpp` | C++ | same 7 nodes |
-| 01_basics | `basics_cross` | Py+C++ | py_talker→cpp_listener, cpp_service_server→py_client, py_action_server→cpp_client |
+| 01_basics | `basics_cross` | Py+C++ | py_talker→cpp_listener, cpp_service_server→py_client, py_action_server→cpp_client. **Self-contained interfaces:** defines its own `msg/Greeting`, `srv/AddTwoInts`, `action/CountUp` in-package (rosidl) — depends on nothing but rcl (no example_interfaces/std_msgs). Python nodes installed as scripts (no `ament_python_install_package`, so rosidl owns the `basics_cross` py module) |
 | 02_micro_ros | `microbot_interfaces` | msgs | `SetBehavior.srv`, `CheckOpenings.srv`, `EscapeObstacle.action` |
 | 02_micro_ros | `microbot_description` | Python | skid-steer rover URDF (chassis, 4 wheels, 3 ultrasonics, motor/MCU/battery) + MJCF + RViz; `use_gazebo` arg (Gazebo target deferred) |
 | 02_micro_ros | `microbot_sim` | Python | `mujoco_driver` (drive + 3 rangefinder ultrasonics + odom/TF), `scan_to_range` (Gazebo helper), `mujoco.launch.py` |

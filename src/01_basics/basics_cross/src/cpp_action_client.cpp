@@ -7,17 +7,17 @@
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
-#include "example_interfaces/action/fibonacci.hpp"
+#include "basics_cross/action/count_up.hpp"
 
-using Fibonacci  = example_interfaces::action::Fibonacci;
-using GoalHandle = rclcpp_action::ClientGoalHandle<Fibonacci>;
+using CountUp    = basics_cross::action::CountUp;
+using GoalHandle = rclcpp_action::ClientGoalHandle<CountUp>;
 
 class CppActionClient : public rclcpp::Node
 {
 public:
   CppActionClient() : Node("cpp_action_client")
   {
-    client_ = rclcpp_action::create_client<Fibonacci>(this, "count_up");
+    client_ = rclcpp_action::create_client<CountUp>(this, "count_up");
   }
 
   void send_goal(int target)
@@ -25,20 +25,20 @@ public:
     client_->wait_for_action_server();
     RCLCPP_INFO(get_logger(), "[C++ client] Sending goal: count to %d", target);
 
-    auto goal = Fibonacci::Goal();
+    auto goal = CountUp::Goal();
     goal.order = target;
 
-    auto opts = rclcpp_action::Client<Fibonacci>::SendGoalOptions();
+    auto opts = rclcpp_action::Client<CountUp>::SendGoalOptions();
 
     opts.feedback_callback = [this](GoalHandle::SharedPtr,
-      const std::shared_ptr<const Fibonacci::Feedback> fb)
+      const std::shared_ptr<const CountUp::Feedback> fb)
     {
-      RCLCPP_INFO(get_logger(), "[C++ client] Feedback from Python server: %d", fb->sequence[0]);
+      RCLCPP_INFO(get_logger(), "[C++ client] Feedback from Python server: %ld", fb->sequence[0]);
     };
 
     opts.result_callback = [this](const GoalHandle::WrappedResult & res)
     {
-      RCLCPP_INFO(get_logger(), "[C++ client] Result from Python server: reached %d",
+      RCLCPP_INFO(get_logger(), "[C++ client] Result from Python server: reached %ld",
         res.result->sequence[0]);
       rclcpp::shutdown();
     };
@@ -47,7 +47,7 @@ public:
   }
 
 private:
-  rclcpp_action::Client<Fibonacci>::SharedPtr client_;
+  rclcpp_action::Client<CountUp>::SharedPtr client_;
 };
 
 int main(int argc, char * argv[])

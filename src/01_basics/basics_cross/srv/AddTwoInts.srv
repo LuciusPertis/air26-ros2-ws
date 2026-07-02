@@ -1,0 +1,6 @@
+# AddTwoInts — service defined inside basics_cross
+# (replaces example_interfaces/srv/AddTwoInts).
+int64 a
+int64 b
+---
+int64 sum

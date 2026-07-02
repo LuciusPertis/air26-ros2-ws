@@ -3,18 +3,21 @@
 <package format="3">
   <name>basics_cross</name>
   <version>0.0.0</version>
-  <description>AIR26 workshop — cross-language: Python and C++ nodes talking to each other</description>
+  <description>AIR26 workshop — cross-language Python↔C++ nodes. All interfaces (msg/srv/action) are defined in-package; depends on nothing but rcl (rclcpp/rclpy) + the core rosidl generator.</description>
   <maintainer email="lsp@todo.todo">lsp</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
   <depend>rclpy</depend>
-  <depend>std_msgs</depend>
-  <depend>example_interfaces</depend>
+
+  <!-- Interface generation: this package defines its OWN msg/srv/action, so it
+       needs no example_interfaces / std_msgs — only the core rosidl machinery. -->
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -6,23 +6,23 @@
 
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/string.hpp"
+#include "basics_cross/msg/greeting.hpp"
 
 class CppListener : public rclcpp::Node
 {
 public:
   CppListener() : Node("cpp_listener")
   {
-    sub_ = create_subscription<std_msgs::msg::String>(
+    sub_ = create_subscription<basics_cross::msg::Greeting>(
       "chatter", 10,
-      [this](const std_msgs::msg::String & msg) {
+      [this](const basics_cross::msg::Greeting & msg) {
         RCLCPP_INFO(get_logger(), "[C++ heard from Python] \"%s\"", msg.data.c_str());
       });
     RCLCPP_INFO(get_logger(), "C++ listener ready on /chatter");
   }
 
 private:
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_;
+  rclcpp::Subscription<basics_cross::msg::Greeting>::SharedPtr sub_;
 };
 
 int main(int argc, char * argv[])
