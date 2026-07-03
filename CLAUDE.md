@@ -78,6 +78,8 @@ ros2 run <package_name> <node_name>
 | 05_perception | `perceptbot_perception` | Python | `camera_processor` (image→`/camera/mean_intensity`+`mean_color`), `aruco_detector` (image→`vision_msgs/Detection2DArray`+overlay), `mjpeg_bridge` (ESP32-CAM WiFi MJPEG→`/camera/image_raw`) |
 | 05_perception | `perceptbot_behaviors` | Python | `behavior_manager` (B1-3 obstacle + B4 light + B5 colour + B6 ArUco), `obstacle_services` (B3), `marker_approach` (B6 action) |
 | 05_perception | `perceptbot_sim` | Python | 3 embodiments: **Webots** (`.wbt`+device URDF+driver plugin, `webots.launch.py`), **MuJoCo** (`mujoco_driver` w/ offscreen camera, `mujoco.launch.py`), **Gazebo** (`perceptbot.sdf`+`gz_bridge.yaml`+`scan_to_range`, `gazebo.launch.py`) |
+| 05_perception_live | `perceptlive_description` | Python | copy of 05 `perceptbot_description` (rover URDF + camera) renamed to avoid colcon collision |
+| 05_perception_live | `perceptlive_perception` | Python | real-HW live demo: 05's `camera_processor`/`aruco_detector`/`mjpeg_bridge` + **new `cmd_vel_odometry`** (dead-reckons `/cmd_vel`→`/odom`+TF+`/joint_states`, since real firmware has no encoders); `live.launch.py` (rsp + odom + camera stack + RViz `live.rviz`, optional micro-ROS agent). **Self-contained:** vendored copies of BOTH firmwares under `firmware/` (`esp32cam_perception` cam + `esp32_microbot` rover base), `COLCON_IGNORE`'d; does NOT touch 02/05 |
 | 03_multi_bot_bt | `multibot_interfaces` | msgs | `SetFormation.srv` (convoy\|parallel) |
 | 03_multi_bot_bt | `multibot_description` | Python | perceptbot variant + back/right ArUco marker links; Webots `patrol.wbt` (3 namespaced units r1/r2/r3 + world-anchor marker, `DICT_4X4_250`) |
 | 03_multi_bot_bt | `multibot_perception` | Python | `aruco_pose_detector` (solvePnP marker pose + TF), `relative_localizer` (named peer positions + world anchor; Tier-1, EKF deferred) |
@@ -121,6 +123,24 @@ ros2 run <package_name> <node_name>
 > over WiFi MJPEG; `mjpeg_bridge` pulls that stream into ROS for ArUco. Docs in
 > `src/05_perception/{THEORY,PLAN,TUTORIAL,SETUP}.md`. Run: `ros2 launch perceptbot_sim
 > {webots,mujoco,gazebo}.launch.py` + `ros2 launch perceptbot_behaviors behaviors.launch.py`.
+
+> **05_perception_live notes:** a **self-contained** spin-off of 05 for ONE scenario — a room of
+> attendees each watch the **real** rover's camera + motion in **RViz** over the LAN. **No sim,
+> real HW only.** Copies 05's `_description` + perception nodes (renamed `perceptlive_*` to avoid
+> colcon name clashes) and adds **`cmd_vel_odometry`** — dead-reckons the *commanded* `/cmd_vel`
+> into `/odom`+TF `odom→base_link`+`/joint_states` (open-loop, drifts, NOT localization) because
+> the rover firmware has **no encoders**; no firmware change needed. `live.launch.py` = rsp +
+> odom + `mjpeg_bridge`/`camera_processor`/`aruco_detector` + RViz (`live.rviz`) + optional
+> micro-ROS agent. **Carries vendored copies of BOTH firmwares** under `firmware/`
+> (`esp32cam_perception` cam + `esp32_microbot` "esp-dev" rover base), `COLCON_IGNORE`'d — does
+> NOT touch/rebuild 02 or 05. **Many-viewers = a ROS-2 multi-machine problem:** ONE host runs
+> `mjpeg_bridge`+agent (ESP32-CAM serves only one HTTP client), attendees just run `rviz2` (same
+> LAN + `ROS_DOMAIN_ID`). The hard part is WiFi/DDS — **`NETWORKING.md`** is the key doc (AP/client
+> isolation off, multicast vs Discovery-Server/static-peers unicast fallback, compressed image
+> transport for bandwidth, static host IP for `AGENT_IP`). Built + verified headless 2026-07-03
+> (`cmd_vel_odometry`: `/odom`+TF move, `/joint_states` 4 wheels @30 Hz). Docs in
+> `src/05_perception_live/{README,SETUP,NETWORKING}.md`. Run: `ros2 launch perceptlive_perception
+> live.launch.py stream_url:=http://<cam-ip>/stream rviz:=true`.
 
 > **06 notes:** **sim-only (MuJoCo)** LLM→motion. A local **Ollama** instruct model
 > (default **`qwen3:1.7b`**, fast on CPU ~2-3 s; `qwen3:4b` via `model:=` = more
