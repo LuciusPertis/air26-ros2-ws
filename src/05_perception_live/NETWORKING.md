@@ -11,17 +11,17 @@
 There are **two independent transports** in play. Do not confuse them.
 
 ```
-                         ┌──────────────────────── LAN (one WiFi AP) ────────────────────────┐
+                         ┌──────────────────────── LAN (one WiFi AP) ─────────────────────────┐
                          │                                                                    │
-  ESP32-CAM ──HTTP MJPEG─┼──►  HOST laptop                                                     │
-  (http://<cam-ip>/stream)│     ├─ mjpeg_bridge      → /camera/image_raw ─┐                    │
-                         │     ├─ camera_processor  → /camera/mean_*      │  DDS (ROS 2)       │
+  ESP32-CAM ──HTTP MJPEG─┼──►  HOST laptop                                                    │
+(http://<cam-ip>/stream) │     ├─ mjpeg_bridge      → /camera/image_raw ─┐                    │
+                         │     ├─ camera_processor  → /camera/mean_*     │  DDS (ROS 2)       │
   ESP32 rover ─micro-ROS─┼──►  ├─ micro_ros_agent   ↔ /ultrasonic/*, /cmd_vel                 │
   (UDP :8888)            │     ├─ cmd_vel_odometry  → /odom, TF, /joint_states                │
-                         │     ├─ aruco_detector    → /aruco/*            │                    │
-                         │     └─ robot_state_publisher → /robot_description                   │
-                         │                                                 ▼                    │
-                         │   attendee laptop ×N:  rviz2  ◄──── DDS subscribes to all topics ───┤
+                         │     ├─ aruco_detector    → /aruco/*           │                    │
+                         │     └─ robot_state_publisher → /robot_description                  │
+                         │                                               ▼                    │
+                         │   attendee laptop ×N:  rviz2  ◄──── DDS subscribes to all topics ──┤
                          └────────────────────────────────────────────────────────────────────┘
 ```
 
