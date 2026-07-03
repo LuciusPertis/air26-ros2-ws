@@ -26,14 +26,14 @@
 #include <rclc/executor.h>
 #include <std_msgs/msg/float32.h>
 #include <std_msgs/msg/color_rgba.h>
-
+#include <std_msgs/msg/string.h>
 // ============================ CONFIG — EDIT ME ============================
-static char     WIFI_SSID[] = "LSPrmn60x";
-static char     WIFI_PASS[] = "pi=3.14159";
-static uint8_t  AGENT_IP[4] = {10, 65, 205, 251};    // PC running micro_ros_agent
+static char     WIFI_SSID[] = "A**";
+static char     WIFI_PASS[] = "A*******";
+static uint8_t  AGENT_IP[4] = {192, 168, 0, ***};    // PC running micro_ros_agent
 static uint16_t AGENT_PORT  = 8888;
 
-static const float PUBLISH_HZ = 5.0f;     // rate for the two micro-ROS topics
+static const float PUBLISH_HZ = 10.0f;     // rate for the two micro-ROS topics
 // RGB565 byte order varies by board; if mean_color has red/blue swapped, flip this.
 static const bool  SWAP_RGB565 = false;
 // ========================================================================
@@ -65,6 +65,10 @@ rcl_publisher_t pub_intensity, pub_color;
 rcl_timer_t timer;
 std_msgs__msg__Float32 msg_intensity;
 std_msgs__msg__ColorRGBA msg_color;
+
+rcl_publisher_t pub_ip;
+std_msgs__msg__String msg_ip;
+char ip_buffer[20];
 
 enum AgentState { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED };
 AgentState state = WAITING_AGENT;
@@ -123,6 +127,7 @@ void on_timer(rcl_timer_t*, int64_t) {
   rcl_publish(&pub_intensity, &msg_intensity, NULL);
   msg_color.r = mr; msg_color.g = mg; msg_color.b = mb; msg_color.a = 1.0f;
   rcl_publish(&pub_color, &msg_color, NULL);
+  rcl_publish(&pub_ip, &msg_ip, NULL);
 }
 
 bool create_entities() {
@@ -133,6 +138,8 @@ bool create_entities() {
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32), "/camera/mean_intensity"));
   RCCHECK(rclc_publisher_init_default(&pub_color, &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, ColorRGBA), "/camera/mean_color"));
+  RCCHECK(rclc_publisher_init_default(&pub_ip, &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String), "/camera/ip"));
   const unsigned int period = (unsigned int)(1000.0f / PUBLISH_HZ);
   RCCHECK(rclc_timer_init_default(&timer, &support, RCL_MS_TO_NS(period), on_timer));
   executor = rclc_executor_get_zero_initialized_executor();
@@ -146,6 +153,7 @@ void destroy_entities() {
   (void)rmw_uros_set_context_entity_destroy_session_timeout(rmw, 0);
   rcl_publisher_fini(&pub_intensity, &node);
   rcl_publisher_fini(&pub_color, &node);
+  rcl_publisher_fini(&pub_ip, &node);
   rcl_timer_fini(&timer);
   rclc_executor_fini(&executor);
   rcl_node_fini(&node);
@@ -160,7 +168,7 @@ esp_err_t stream_handler(httpd_req_t* req) {
     camera_fb_t* fb = esp_camera_fb_get();
     if (!fb) return ESP_FAIL;
     uint8_t* jpg = NULL; size_t jpg_len = 0;
-    bool ok = frame2jpg(fb, 80, &jpg, &jpg_len);   // RGB565 -> JPEG
+    bool ok = frame2jpg(fb, 50, &jpg, &jpg_len);   // RGB565 -> JPEG
     esp_camera_fb_return(fb);
     if (!ok) return ESP_FAIL;
     char hdr[64];
@@ -210,6 +218,11 @@ void setup() {
   Serial.printf("[wifi] status=%d IP=%s\n", (int)WiFi.status(),
                 WiFi.localIP().toString().c_str());
 
+  strncpy(ip_buffer, WiFi.localIP().toString().c_str(), sizeof(ip_buffer));
+  msg_ip.data.data = ip_buffer;
+  msg_ip.data.capacity = sizeof(ip_buffer);
+  msg_ip.data.size = strlen(ip_buffer);
+
   start_http();   // image stream is independent of the micro-ROS link
   set_microros_wifi_transports(WIFI_SSID, WIFI_PASS, AGENT_IP, AGENT_PORT);
   Serial.printf("[uros] agent %d.%d.%d.%d:%u\n",
@@ -219,7 +232,8 @@ void setup() {
 void loop() {
   switch (state) {
     case WAITING_AGENT:
-      EXEC_EVERY(500, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1))
+      // Increased timeout to 1000ms
+      EXEC_EVERY(500, state = (RMW_RET_OK == rmw_uros_ping_agent(1000, 1))
                               ? AGENT_AVAILABLE : WAITING_AGENT);
       break;
     case AGENT_AVAILABLE:
@@ -227,7 +241,8 @@ void loop() {
       if (state == WAITING_AGENT) destroy_entities();
       break;
     case AGENT_CONNECTED:
-      EXEC_EVERY(200, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 3))
+      // Increased timeout to 1000ms
+      EXEC_EVERY(200, state = (RMW_RET_OK == rmw_uros_ping_agent(1000, 3))
                               ? AGENT_CONNECTED : AGENT_DISCONNECTED);
       if (state == AGENT_CONNECTED)
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(20));
