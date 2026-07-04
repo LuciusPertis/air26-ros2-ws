@@ -1,5 +1,6 @@
 // AIR26 Workshop 02 — ESP32 micro-ROS firmware for the obstacle-avoider rover.
 //
+// ESP32-S3 micro-ROS firmware for the obstacle-avoider rover.
 // This is the REAL robot's brain-stem. It exposes the SAME ROS 2 interface as the
 // MuJoCo sim, so the microbot_behaviors nodes drive it unchanged:
 //     publishes: /ultrasonic/front|left|right   (sensor_msgs/Range)   <- 3x HC-SR04
@@ -8,8 +9,8 @@
 // Transport: WiFi/UDP to the micro-ROS Agent. Flash over USB, then it runs untethered.
 //
 // >>> EDIT THE CONFIG BLOCK BELOW for your WiFi, your Agent's IP, and your wiring. <<<
-// Reference hardware: ESP32 DevKit + L298N dual H-bridge (skid-steer: left pair / right
-// pair) + 3x HC-SR04. If you use a different motor driver, only set_motor()/setup change.
+// Hardware: ESP32-S3 + L298N dual H-bridge (skid-steer: left pair / right pair)
+// + 3x HC-SR04. If you use a different motor driver, only drive_side()/setup change.
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -28,14 +29,15 @@ static char        WIFI_PASS[]  = "pi=3.14159";
 static uint8_t     AGENT_IP[4]  = {10, 185, 122, 251};  // the PC running micro_ros_agent
 static uint16_t    AGENT_PORT   = 8888;
 
-// HC-SR04 ultrasonics: {trig, echo} pins
-static const int US_FRONT[2] = {26, 25};
-static const int US_LEFT[2]  = {33, 32};
-static const int US_RIGHT[2] = {18, 19};
+// HC-SR04 ultrasonics: {trig, echo} pins  (ESP32-S3 safe GPIOs)
+// NOTE: HC-SR04 echo is 5V - use a level shifter / voltage divider to the S3 (3.3V).
+static const int US_FRONT[2] = {10, 11};
+static const int US_LEFT[2]  = {12, 13};
+static const int US_RIGHT[2] = {14, 21};
 
 // L298N motor driver — left channel (both left wheels) / right channel (both right wheels)
-static const int L_EN = 13, L_IN1 = 12, L_IN2 = 14;     // ENA, IN1, IN2
-static const int R_EN = 27, R_IN1 = 16, R_IN2 = 17;     // ENB, IN3, IN4
+static const int L_EN = 6,  L_IN1 = 4, L_IN2 = 5;      // ENA, IN1, IN2
+static const int R_EN = 16, R_IN1 = 7, R_IN2 = 15;     // ENB, IN3, IN4
 
 // Kinematics / tuning
 static const float WHEEL_SEP   = 0.28f;   // m, left-right track width
@@ -164,11 +166,13 @@ void setup() {
   delay(300);
   Serial.println();
   Serial.printf("[microbot] boot. connecting to WiFi SSID='%s' ...\n", WIFI_SSID);
-
-  // Manual, non-blocking WiFi join with status logging (don't hang forever like the
-  // default set_microros_wifi_transports loop). status codes: 0=IDLE 1=NO_SSID_AVAIL
-  // 3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. NO_SSID on a classic ESP32 usually
-  // means the SSID is 5 GHz only (ESP32 is 2.4 GHz). Scan results are printed too.
+  
+  //old esp32-dev//   Manual, non-blocking WiFi join with status logging (don't hang forever like the
+  //old esp32-dev//   default set_microros_wifi_transports loop). status codes: 0=IDLE 1=NO_SSID_AVAIL
+  //old esp32-dev//   3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. NO_SSID on a classic ESP32 usually
+  //old esp32-dev//   means the SSID is 5 GHz only (ESP32 is 2.4 GHz). Scan results are printed too.
+  // Manual, non-blocking WiFi join with status logging. status codes: 0=IDLE
+  // 1=NO_SSID_AVAIL 3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. Scan results printed too.
   WiFi.mode(WIFI_STA);
   int n = WiFi.scanNetworks();
   Serial.printf("[microbot] scan found %d networks:\n", n);
