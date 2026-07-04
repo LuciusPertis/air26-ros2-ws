@@ -1,6 +1,8 @@
-// ESP32-S3 micro-ROS firmware for the obstacle-avoider rover.
+// AIR26 Workshop 02 — ESP32 micro-ROS firmware for the obstacle-avoider rover.
 //
-// Exposes the same ROS 2 interface as the sim:
+// ESP32-S3 micro-ROS firmware for the obstacle-avoider rover.
+// This is the REAL robot's brain-stem. It exposes the SAME ROS 2 interface as the
+// MuJoCo sim, so the microbot_behaviors nodes drive it unchanged:
 //     publishes: /ultrasonic/front|left|right   (sensor_msgs/Range)   <- 3x HC-SR04
 //     subscribes: /cmd_vel                       (geometry_msgs/Twist) -> L298N motors
 //
@@ -22,9 +24,9 @@
 
 // ============================ CONFIG — EDIT ME ============================
 // WiFi + Agent
-static char        WIFI_SSID[]  = "";
-static char        WIFI_PASS[]  = "";
-static uint8_t     AGENT_IP[4]  = {0, 0, 0, 0};   // the PC running micro_ros_agent
+static char        WIFI_SSID[]  = "LSPrmn60x";
+static char        WIFI_PASS[]  = "pi=3.14159";
+static uint8_t     AGENT_IP[4]  = {10, 185, 122, 251};  // the PC running micro_ros_agent
 static uint16_t    AGENT_PORT   = 8888;
 
 // HC-SR04 ultrasonics: {trig, echo} pins  (ESP32-S3 safe GPIOs)
@@ -164,7 +166,11 @@ void setup() {
   delay(300);
   Serial.println();
   Serial.printf("[microbot] boot. connecting to WiFi SSID='%s' ...\n", WIFI_SSID);
-
+  
+  //old esp32-dev//   Manual, non-blocking WiFi join with status logging (don't hang forever like the
+  //old esp32-dev//   default set_microros_wifi_transports loop). status codes: 0=IDLE 1=NO_SSID_AVAIL
+  //old esp32-dev//   3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. NO_SSID on a classic ESP32 usually
+  //old esp32-dev//   means the SSID is 5 GHz only (ESP32 is 2.4 GHz). Scan results are printed too.
   // Manual, non-blocking WiFi join with status logging. status codes: 0=IDLE
   // 1=NO_SSID_AVAIL 3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. Scan results printed too.
   WiFi.mode(WIFI_STA);
