@@ -1,15 +1,15 @@
-// AIR26 Workshop 02 — ESP32 micro-ROS firmware for the obstacle-avoider rover.
+// ESP32-S3 micro-ROS firmware for the obstacle-avoider rover.
 //
-// This is the REAL robot's brain-stem. It exposes the SAME ROS 2 interface as the
-// MuJoCo sim, so the microbot_behaviors nodes drive it unchanged:
+// Exposes the same ROS 2 interface as the sim:
 //     publishes: /ultrasonic/front|left|right   (sensor_msgs/Range)   <- 3x HC-SR04
+//     publishes: /joint_states                  (sensor_msgs/JointState) <- Encoders
 //     subscribes: /cmd_vel                       (geometry_msgs/Twist) -> L298N motors
 //
 // Transport: WiFi/UDP to the micro-ROS Agent. Flash over USB, then it runs untethered.
 //
 // >>> EDIT THE CONFIG BLOCK BELOW for your WiFi, your Agent's IP, and your wiring. <<<
-// Reference hardware: ESP32 DevKit + L298N dual H-bridge (skid-steer: left pair / right
-// pair) + 3x HC-SR04. If you use a different motor driver, only set_motor()/setup change.
+// Hardware: ESP32-S3 + L298N dual H-bridge (skid-steer: left pair / right pair)
+// + 3x HC-SR04. If you use a different motor driver, only drive_side()/setup change.
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -19,26 +19,36 @@
 #include <rclc/executor.h>
 #include <micro_ros_utilities/string_utilities.h>
 #include <sensor_msgs/msg/range.h>
+#include <sensor_msgs/msg/joint_state.h>
 #include <geometry_msgs/msg/twist.h>
 
 // ============================ CONFIG — EDIT ME ============================
 // WiFi + Agent
-static char        WIFI_SSID[]  = "LSPrmn60x";
-static char        WIFI_PASS[]  = "pi=3.14159";
-static uint8_t     AGENT_IP[4]  = {10, 185, 122, 251};  // the PC running micro_ros_agent
+static char        WIFI_SSID[]  = "";
+static char        WIFI_PASS[]  = "";
+static uint8_t     AGENT_IP[4]  = {0, 0, 0, 0};   // the PC running micro_ros_agent
 static uint16_t    AGENT_PORT   = 8888;
 
-// HC-SR04 ultrasonics: {trig, echo} pins
-static const int US_FRONT[2] = {26, 25};
-static const int US_LEFT[2]  = {33, 32};
-static const int US_RIGHT[2] = {18, 19};
+// HC-SR04 ultrasonics: {trig, echo} pins  (ESP32-S3 safe GPIOs)
+// NOTE: HC-SR04 echo is 5V - use a level shifter / voltage divider to the S3 (3.3V).
+static const int US_FRONT[2] = {10, 11};
+static const int US_LEFT[2]  = {12, 13};
+static const int US_RIGHT[2] = {14, 21};
 
 // L298N motor driver — left channel (both left wheels) / right channel (both right wheels)
-static const int L_EN = 13, L_IN1 = 12, L_IN2 = 14;     // ENA, IN1, IN2
-static const int R_EN = 27, R_IN1 = 16, R_IN2 = 17;     // ENB, IN3, IN4
+static const int L_EN = 6,  L_IN1 = 4, L_IN2 = 5;      // ENA, IN1, IN2
+static const int R_EN = 16, R_IN1 = 7, R_IN2 = 15;     // ENB, IN3, IN4
+
+// --- ENCODER CONFIG ---
+// Use interrupt-capable pins.
+static const int ENC_L_A = 34, ENC_L_B = 35;
+static const int ENC_R_A = 36, ENC_R_B = 39;
+
+// Adjust this based on your exact JGB37-520 gearbox (e.g., 11 PPR * 30:1 ratio = 330)
+static const float TICKS_PER_REV = 330.0f; 
 
 // Kinematics / tuning
-static const float WHEEL_SEP   = 0.28f;   // m, left-right track width
+static const float WHEEL_SEP   = 0.1255f; // m, left-right track width
 static const float MAX_LIN     = 0.25f;   // m/s mapped to full PWM
 static const int   PWM_FREQ    = 1000;    // Hz
 static const int   US_MAX_M    = 2;       // clamp ultrasonic range (m)
@@ -49,11 +59,17 @@ rcl_node_t node;
 rclc_support_t support;
 rcl_allocator_t allocator;
 rclc_executor_t executor;
-rcl_publisher_t pub_front, pub_left, pub_right;
+rcl_publisher_t pub_front, pub_left, pub_right, pub_joints;
 rcl_subscription_t sub_cmd;
 rcl_timer_t timer;
+
 sensor_msgs__msg__Range range_front, range_left, range_right;
 geometry_msgs__msg__Twist cmd_msg;
+sensor_msgs__msg__JointState joint_msg;
+
+// Memory allocation for the JointState strings and arrays
+rosidl_runtime_c__String joint_names[2];
+double joint_positions[2];
 
 // ---- agent connection state machine (standard micro-ROS reconnect pattern) ----
 enum AgentState { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED };
@@ -62,6 +78,19 @@ AgentState state = WAITING_AGENT;
 #define RCCHECK(fn)    { if ((fn) != RCL_RET_OK) return false; }
 #define EXEC_EVERY(MS, X)  do { static volatile int64_t t=-1; \
   if (t==-1) t=uxr_millis(); if ((int32_t)(uxr_millis()-t) > (MS)) { X; t=uxr_millis(); } } while (0)
+
+// ---- Hardware Encoder Interrupts ----
+volatile int32_t enc_left_ticks = 0;
+volatile int32_t enc_right_ticks = 0;
+
+void IRAM_ATTR isr_enc_left() {
+  if (digitalRead(ENC_L_B) == HIGH) enc_left_ticks++; else enc_left_ticks--;
+}
+
+void IRAM_ATTR isr_enc_right() {
+  // Right side might need reversed logic depending on physical wiring
+  if (digitalRead(ENC_R_B) == HIGH) enc_right_ticks++; else enc_right_ticks--;
+}
 
 // ---- HC-SR04: one blocking ping -> metres ----
 float read_ultrasonic(const int pins[2]) {
@@ -100,14 +129,27 @@ void fill_range(sensor_msgs__msg__Range* r, const char* frame) {
   r->header.frame_id = micro_ros_string_utilities_set(r->header.frame_id, frame);
 }
 
-// ---- timer: read the 3 ultrasonics and publish ----
+// ---- timer: read the 3 ultrasonics and encoders, then publish ----
 void on_timer(rcl_timer_t*, int64_t) {
+  // 1. Publish Ultrasonics
   range_front.range = read_ultrasonic(US_FRONT);
   range_left.range  = read_ultrasonic(US_LEFT);
   range_right.range = read_ultrasonic(US_RIGHT);
   rcl_publish(&pub_front, &range_front, NULL);
   rcl_publish(&pub_left,  &range_left,  NULL);
   rcl_publish(&pub_right, &range_right, NULL);
+
+  // 2. Publish Encoders as JointStates
+  // Convert ticks to radians: (ticks / ticks_per_rev) * 2π
+  joint_positions[0] = ((double)enc_left_ticks / TICKS_PER_REV) * 2.0 * PI;
+  joint_positions[1] = ((double)enc_right_ticks / TICKS_PER_REV) * 2.0 * PI;
+  
+  // Set timestamp (required by some TF trees)
+  int64_t time_ns = rmw_uros_epoch_nanos();
+  joint_msg.header.stamp.sec = time_ns / 1000000000;
+  joint_msg.header.stamp.nanosec = time_ns % 1000000000;
+
+  rcl_publish(&pub_joints, &joint_msg, NULL);
 }
 
 bool create_entities() {
@@ -121,8 +163,24 @@ bool create_entities() {
     ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range), "/ultrasonic/left"));
   RCCHECK(rclc_publisher_init_default(&pub_right, &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range), "/ultrasonic/right"));
+    
+  RCCHECK(rclc_publisher_init_default(&pub_joints, &node, 
+    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState), "/joint_states"));
+
   RCCHECK(rclc_subscription_init_default(&sub_cmd, &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist), "/cmd_vel"));
+
+  // Configure JointState Message Memory
+  joint_msg.header.frame_id = micro_ros_string_utilities_set(joint_msg.header.frame_id, "base_link");
+  joint_msg.name.data = joint_names;
+  joint_msg.name.size = 2;
+  joint_msg.name.capacity = 2;
+  joint_msg.name.data[0] = micro_ros_string_utilities_set(joint_msg.name.data[0], "base_back_left_wheel_joint");
+  joint_msg.name.data[1] = micro_ros_string_utilities_set(joint_msg.name.data[1], "base_back_right_wheel_joint");
+  
+  joint_msg.position.data = joint_positions;
+  joint_msg.position.size = 2;
+  joint_msg.position.capacity = 2;
 
   RCCHECK(rclc_timer_init_default(&timer, &support, RCL_MS_TO_NS(100), on_timer));
   executor = rclc_executor_get_zero_initialized_executor();
@@ -133,6 +191,10 @@ bool create_entities() {
   fill_range(&range_front, "us_front");
   fill_range(&range_left,  "us_left");
   fill_range(&range_right, "us_right");
+  
+  // Sync time with agent for valid TF timestamps
+  rmw_uros_sync_session(1000);
+  
   return true;
 }
 
@@ -142,6 +204,7 @@ void destroy_entities() {
   rcl_publisher_fini(&pub_front, &node);
   rcl_publisher_fini(&pub_left, &node);
   rcl_publisher_fini(&pub_right, &node);
+  rcl_publisher_fini(&pub_joints, &node);
   rcl_subscription_fini(&sub_cmd, &node);
   rcl_timer_fini(&timer);
   rclc_executor_fini(&executor);
@@ -151,11 +214,15 @@ void destroy_entities() {
 
 void setup() {
   // motor + sensor GPIO
-  for (int p : {L_EN, L_IN1, L_IN2, R_EN, R_IN1, R_IN2,
-                US_FRONT[0], US_LEFT[0], US_RIGHT[0]}) pinMode(p, OUTPUT);
-  for (int p : {US_FRONT[1], US_LEFT[1], US_RIGHT[1]}) pinMode(p, INPUT);
+  for (int p : {L_EN, L_IN1, L_IN2, R_EN, R_IN1, R_IN2, US_FRONT[0], US_LEFT[0], US_RIGHT[0]}) pinMode(p, OUTPUT);
+  for (int p : {US_FRONT[1], US_LEFT[1], US_RIGHT[1], ENC_L_A, ENC_L_B, ENC_R_A, ENC_R_B}) pinMode(p, INPUT);
+  
   drive_side(L_EN, L_IN1, L_IN2, 0);
   drive_side(R_EN, R_IN1, R_IN2, 0);
+  
+  // Attach Hardware Interrupts for Encoders
+  attachInterrupt(digitalPinToInterrupt(ENC_L_A), isr_enc_left, RISING);
+  attachInterrupt(digitalPinToInterrupt(ENC_R_A), isr_enc_right, RISING);
 
   // === CHECKPOINT: serial_diag ===
   // Boot/WiFi/Agent diagnostics on the USB serial console (115200). Comment out this
@@ -165,10 +232,8 @@ void setup() {
   Serial.println();
   Serial.printf("[microbot] boot. connecting to WiFi SSID='%s' ...\n", WIFI_SSID);
 
-  // Manual, non-blocking WiFi join with status logging (don't hang forever like the
-  // default set_microros_wifi_transports loop). status codes: 0=IDLE 1=NO_SSID_AVAIL
-  // 3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. NO_SSID on a classic ESP32 usually
-  // means the SSID is 5 GHz only (ESP32 is 2.4 GHz). Scan results are printed too.
+  // Manual, non-blocking WiFi join with status logging. status codes: 0=IDLE
+  // 1=NO_SSID_AVAIL 3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. Scan results printed too.
   WiFi.mode(WIFI_STA);
   int n = WiFi.scanNetworks();
   Serial.printf("[microbot] scan found %d networks:\n", n);
