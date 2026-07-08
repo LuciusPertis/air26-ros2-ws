@@ -5,8 +5,15 @@ its **URDF** in RViz, watch its **sensor messages** and **TF** flow, then give i
 obstacle-avoidance **behaviours** — and see *why* ROS has topics, services AND actions.
 
 > The robot will later run **micro-ROS on an ESP32** (a separate session). For now a
-> **simulator** plays the robot: it publishes the same `/ultrasonic/*` ranges and listens
+> **simulator** plays the robot: it publishes the same `/ultrasonic/*` readings and listens
 > to the same `/cmd_vel` — so everything you write today works unchanged on the real board.
+
+> **Note — latency branch (`10-fix-...`):** on this branch the ultrasonics ship as
+> `std_msgs/UInt8` **centimetres** (not `sensor_msgs/Range`), best-effort QoS, to cut
+> sim-to-real latency. The **sim was changed to match the firmware**, so `mujoco_driver` also
+> publishes `UInt8` cm — sim and real still share one interface. RViz's range cones are fed by
+> a tiny viz-only `range_viz_bridge` (cm → `Range` on `/ultrasonic/*/range`). See
+> [`LATENCY.md`](LATENCY.md) for the full rationale and the commit diffs.
 
 > **Build first** (once, and again after editing a node):
 > ```bash
@@ -29,8 +36,9 @@ obstacle-avoidance **behaviours** — and see *why* ROS has topics, services AND
 ```bash
 ros2 launch microbot_sim mujoco.launch.py
 ```
-A MuJoCo window shows the rover in an arena with walls and pillars; RViz shows the **URDF
-model**, the **TF tree**, and **three coloured range cones** (the ultrasonics).
+A MuJoCo window shows the rover in an arena with walls, two fixed **pillars**, and three
+**movable boxes**; RViz shows the **URDF model**, the **TF tree**, and **three coloured
+range cones** (the ultrasonics).
 
 | Part | What it is |
 |------|------------|
@@ -39,10 +47,25 @@ model**, the **TF tree**, and **three coloured range cones** (the ultrasonics).
 | 3 blue boxes | ultrasonic sensors — front / left / right |
 | green / red / orange boxes | battery / MCU / motor (the "guts") |
 
+### The obstacles: fixed pillars vs. movable boxes
+The arena has two kinds of obstacle:
+- **Fixed pillars** (teal + red) are *static* geometry — baked into the world, they never move.
+- **Movable boxes** (amber + purple) are **free rigid bodies**: the rover physically
+  **pushes** them, and *you* can **grab them with the mouse** to rearrange the course live —
+  completely independent of ROS. In the MuJoCo window: **double-click a box to select it**,
+  then **Ctrl + right-drag** to slide it, **Ctrl + left-drag** to spin it.
+
+> **Watch the sensors respond.** As a box moves closer to (or you drag it in front of) a
+> sensor, watch that sensor's **range cone in RViz shrink**, and `ros2 topic echo
+> /ultrasonic/front` count down; drag it away and the cone **grows** back. The cheap
+> ultrasonics are just casting rays at whatever is there — sim or real, moved by physics or
+> by your cursor. This is the fastest way to *provoke* a behaviour on demand (next sections).
+
 Explore the parts and frames:
 ```bash
 ros2 run tf2_tools view_frames          # writes a PDF of the TF tree (URDF link frames)
-ros2 topic echo /ultrasonic/front       # a sensor_msgs/Range message (the "Sensors/messages" topic)
+ros2 topic echo /ultrasonic/front       # std_msgs/UInt8 = distance in cm (latency branch)
+ros2 topic echo /ultrasonic/front/range # sensor_msgs/Range (viz-only, from range_viz_bridge)
 ```
 
 ---
@@ -94,6 +117,17 @@ ros2 action list
 ros2 action send_goal /escape_obstacle microbot_interfaces/action/EscapeObstacle \
   "{left_open: false, right_open: false}" --feedback
 ```
+
+> **The "both blocked → back up + 180°" trap.** The three movable boxes are placed to *set
+> up this exact case* without you touching anything: two boxes flank the start position
+> (one just left, one just right) with the fixed pillar dead ahead. When the random walk
+> heads roughly straight out of the start, the rover drives **into the pocket between the
+> two boxes** — `/check_openings` finds **left *and* right blocked** — and the fixed pillar
+> blocks the front, so `/escape_obstacle` runs its full signature: **back up, then spin
+> 180°** (watch the feedback go `backing_up → turning_180`). If the random heading misses
+> the pocket, just **drag a box into its path** with the mouse to force the trap. Watch all
+> three RViz range cones collapse at once as it enters the pocket — that's the sensor
+> picture the service reads.
 
 ### Why three different tools?
 - a **topic** is a continuous stream (the ultrasonics, `/cmd_vel`) — B1/B2 only need this;

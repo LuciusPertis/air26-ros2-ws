@@ -6,7 +6,7 @@ The behaviour nodes don't know or care that it's MuJoCo — swap this for the
 micro_ros_agent + ESP32 and they keep working.
 
   subscribes:  /cmd_vel              (geometry_msgs/Twist)
-  publishes:   /ultrasonic/front|left|right  (sensor_msgs/Range)   <- the 3 ultrasonics
+  publishes:   /ultrasonic/front|left|right  (std_msgs/UInt8, cm)   <- the 3 ultrasonics
                /odom (nav_msgs/Odometry) + TF odom->base_link
                /joint_states (wheels, so RViz spins them)
 
@@ -24,7 +24,9 @@ from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import Twist, TransformStamped
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from sensor_msgs.msg import JointState, Range
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import JointState
+from std_msgs.msg import UInt8
 from tf2_ros import TransformBroadcaster
 
 WHEELS = ['wheel_fl_joint', 'wheel_fr_joint', 'wheel_rl_joint', 'wheel_rr_joint']
@@ -64,7 +66,9 @@ class MujocoDriver(Node):
         self.last_cmd = self.get_clock().now()
 
         self.create_subscription(Twist, 'cmd_vel', self.on_cmd, 10)
-        self.range_pubs = {topic: self.create_publisher(Range, topic, 10)
+        # best-effort to match the real ESP32 firmware's sensor QoS (latency branch).
+        sensor_qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
+        self.range_pubs = {topic: self.create_publisher(UInt8, topic, sensor_qos)
                            for _, _, topic in RANGERS}
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
         self.js_pub = self.create_publisher(JointState, 'joint_states', 10)
@@ -114,24 +118,19 @@ class MujocoDriver(Node):
             self.viewer.sync()
 
         now = self.get_clock().now().to_msg()
-        self.publish_ranges(now)
+        self.publish_ranges()
         self.publish_odom(now, yaw)
         self.publish_joints(now)
 
-    def publish_ranges(self, stamp):
-        for sname, frame, topic in RANGERS:
+    def publish_ranges(self):
+        # ship centimetres as UInt8 (latency branch): no header, 1 byte on the wire.
+        # RViz gets Range from range_viz_bridge instead. MAX_RANGE 2 m -> 200 cm, fits uint8.
+        for sname, _frame, topic in RANGERS:
             d = float(self.data.sensordata[self.sadr[sname]])
             if d < 0:                          # rangefinder: -1 = no hit
                 d = MAX_RANGE
-            r = Range()
-            r.header.stamp = stamp
-            r.header.frame_id = frame
-            r.radiation_type = Range.ULTRASOUND
-            r.field_of_view = 0.26
-            r.min_range = MIN_RANGE
-            r.max_range = MAX_RANGE
-            r.range = float(min(max(d, MIN_RANGE), MAX_RANGE))
-            self.range_pubs[topic].publish(r)
+            d = min(max(d, MIN_RANGE), MAX_RANGE)
+            self.range_pubs[topic].publish(UInt8(data=int(round(d * 100.0))))
 
     def publish_odom(self, stamp, yaw):
         x = float(self.data.qpos[self.qadr['slide_x']])

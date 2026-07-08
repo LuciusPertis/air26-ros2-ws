@@ -9,7 +9,7 @@ sees something close, reacts according to the ACTIVE behaviour:
                        -- a long, watchable, cancelable maneuver. Switching away from B3
                        mid-escape CANCELS the action (the "why we need actions" moment).
 
-  subscribes:  /ultrasonic/front|left|right  (sensor_msgs/Range)
+  subscribes:  /ultrasonic/front|left|right  (std_msgs/UInt8, cm)
   publishes:   /cmd_vel                       (geometry_msgs/Twist)
   service:     /set_behavior                  (switch 1|2|3 at runtime)
   clients:     /check_openings (srv) + /escape_obstacle (action)   [B3 only]
@@ -22,8 +22,9 @@ import random
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Range
+from std_msgs.msg import UInt8
 
 from microbot_interfaces.srv import CheckOpenings
 from microbot_interfaces.action import EscapeObstacle
@@ -37,7 +38,7 @@ class BehaviorManager(Node):
 
     def __init__(self):
         super().__init__('behavior_manager')
-        self.declare_parameter('front_threshold', 0.35)
+        self.declare_parameter('front_threshold', 35)  # cm (was 0.35 m)
         self.declare_parameter('walk_period', 2.0)     # s between random-walk samples
         self.declare_parameter('b1_wait', 2.0)         # s to pause in B1
         self.declare_parameter('b2_turn', 1.5)         # s to turn in B2
@@ -45,15 +46,18 @@ class BehaviorManager(Node):
 
         self.behavior = 1
         self.state = WALK
-        self.front = 99.0
+        self.front = 255               # cm; 255 = "far / no reading yet"
         self.walk_cmd = Twist()
         self.t_next_sample = 0.0
         self.t_state_end = 0.0
         self.turn_dir = 1.0
         self.escape_handle = None
 
-        self.create_subscription(Range, '/ultrasonic/front',
-                                 lambda m: setattr(self, 'front', m.range), 2) # shortening the queue size to 2 (old 10); avoids old readings when robot is stopped; keeps latest reading
+        # depth 2 + best-effort: avoids old readings when stopped, matches the sensor QoS
+        # of the sim driver and the real ESP32 firmware (latency branch).
+        sensor_qos = QoSProfile(depth=2, reliability=ReliabilityPolicy.BEST_EFFORT)
+        self.create_subscription(UInt8, '/ultrasonic/front',
+                                 lambda m: setattr(self, 'front', m.data), sensor_qos)
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.create_service(SetBehavior, '/set_behavior', self.on_set_behavior)
 
@@ -157,7 +161,7 @@ class BehaviorManager(Node):
             # self.sleep(1.0)  # wait a bit before retrying 
 
         req = CheckOpenings.Request()
-        req.threshold = 0.0                               # use server default
+        req.threshold = 0                                 # cm; 0 = use server default
         self.check_cli.call_async(req).add_done_callback(self.on_openings)
 
     def on_openings(self, fut):

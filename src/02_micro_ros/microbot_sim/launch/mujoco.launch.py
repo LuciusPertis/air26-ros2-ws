@@ -38,6 +38,13 @@ def generate_launch_description():
         parameters=[{'use_viewer': LaunchConfiguration('use_viewer')}]))
     # === END CHECKPOINT: mujoco ===
 
+    # Latency branch: ultrasonics are std_msgs/UInt8 cm; RViz needs sensor_msgs/Range,
+    # so this viz-only bridge re-inflates cm -> Range on /ultrasonic/*/range. Off the
+    # control loop, so it only runs when RViz does.
+    ld.add_action(Node(
+        package='microbot_sim', executable='range_viz_bridge', output='log',
+        condition=IfCondition(LaunchConfiguration('use_rviz'))))
+
     ld.add_action(Node(
         package='rviz2', executable='rviz2', output='log', arguments=['-d', rviz_cfg],
         condition=IfCondition(LaunchConfiguration('use_rviz'))))

@@ -3,8 +3,13 @@
 // ESP32-S3 micro-ROS firmware for the obstacle-avoider rover.
 // This is the REAL robot's brain-stem. It exposes the SAME ROS 2 interface as the
 // MuJoCo sim, so the microbot_behaviors nodes drive it unchanged:
-//     publishes: /ultrasonic/front|left|right   (sensor_msgs/Range)   <- 3x HC-SR04
+//     publishes: /ultrasonic/front|left|right   (std_msgs/UInt8, cm)   <- 3x HC-SR04
 //     subscribes: /cmd_vel                       (geometry_msgs/Twist) -> L298N motors
+//
+// LATENCY BRANCH (10-fix): this firmware DELIBERATELY diverges from the MuJoCo sim to cut
+// sim-to-real latency. Ultrasonics ship as std_msgs/UInt8 centimetres (no header/frame_id
+// string), best-effort QoS, weighted round-robin polling, WiFi power-save off. A host-side
+// bridge re-inflates UInt8 -> sensor_msgs/Range for the RViz viz feed. See LATENCY.md.
 //
 // Transport: WiFi/UDP to the micro-ROS Agent. Flash over USB, then it runs untethered.
 //
@@ -18,8 +23,7 @@
 #include <rcl/rcl.h>
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
-#include <micro_ros_utilities/string_utilities.h>
-#include <sensor_msgs/msg/range.h>
+#include <std_msgs/msg/u_int8.h>
 #include <geometry_msgs/msg/twist.h>
 
 // ============================ CONFIG — EDIT ME ============================
@@ -54,7 +58,7 @@ rclc_executor_t executor;
 rcl_publisher_t pub_front, pub_left, pub_right;
 rcl_subscription_t sub_cmd;
 rcl_timer_t timer;
-sensor_msgs__msg__Range range_front, range_left, range_right;
+std_msgs__msg__UInt8 range_front, range_left, range_right;   // centimetres (0..US_MAX_M*100)
 geometry_msgs__msg__Twist cmd_msg;
 
 // ---- agent connection state machine (standard micro-ROS reconnect pattern) ----
@@ -94,22 +98,24 @@ void on_cmd(const void* msgin) {
   drive_side(R_EN, R_IN1, R_IN2, right);
 }
 
-void fill_range(sensor_msgs__msg__Range* r, const char* frame) {
-  r->radiation_type = sensor_msgs__msg__Range__ULTRASOUND;
-  r->field_of_view = 0.26f;
-  r->min_range = 0.04f;
-  r->max_range = (float)US_MAX_M;
-  r->header.frame_id = micro_ros_string_utilities_set(r->header.frame_id, frame);
+// ---- read one sensor -> clamp to centimetres -> publish its UInt8 ----
+void poll_and_publish(const int pins[2], std_msgs__msg__UInt8* msg, rcl_publisher_t* pub) {
+  int cm = (int)(read_ultrasonic(pins) * 100.0f + 0.5f);   // metres -> cm, rounded
+  msg->data = (uint8_t)(cm > 255 ? 255 : cm);              // US_MAX_M*100 <= 200, safe
+  rcl_publish(pub, msg, NULL);
 }
 
-// ---- timer: read the 3 ultrasonics and publish ----
+// ---- timer: weighted round-robin so ONE blocking pulseIn runs per tick, not three ----
+// cycle [F, L, F, R]: at a 50 ms tick, front updates every 100 ms (~10 Hz), each side
+// every 200 ms (~5 Hz). Front is the obstacle-critical sensor, so it is polled 2x the sides.
 void on_timer(rcl_timer_t*, int64_t) {
-  range_front.range = read_ultrasonic(US_FRONT);
-  range_left.range  = read_ultrasonic(US_LEFT);
-  range_right.range = read_ultrasonic(US_RIGHT);
-  rcl_publish(&pub_front, &range_front, NULL);
-  rcl_publish(&pub_left,  &range_left,  NULL);
-  rcl_publish(&pub_right, &range_right, NULL);
+  static uint8_t phase = 0;
+  switch (phase) {
+    case 0: case 2: poll_and_publish(US_FRONT, &range_front, &pub_front); break;
+    case 1:         poll_and_publish(US_LEFT,  &range_left,  &pub_left);  break;
+    case 3:         poll_and_publish(US_RIGHT, &range_right, &pub_right); break;
+  }
+  phase = (phase + 1) & 3;
 }
 
 bool create_entities() {
@@ -117,24 +123,24 @@ bool create_entities() {
   RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
   RCCHECK(rclc_node_init_default(&node, "microbot_esp32", "", &support));
 
-  RCCHECK(rclc_publisher_init_default(&pub_front, &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range), "/ultrasonic/front"));
-  RCCHECK(rclc_publisher_init_default(&pub_left, &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range), "/ultrasonic/left"));
-  RCCHECK(rclc_publisher_init_default(&pub_right, &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range), "/ultrasonic/right"));
-  RCCHECK(rclc_subscription_init_default(&sub_cmd, &node,
+  // Best-effort + volatile QoS: sensor data is fire-and-forget. Over lossy WiFi/UDP the
+  // default RELIABLE QoS (ACKs + retransmits + history queue) is the main tail-latency
+  // source; drop it. A stale reading is worthless — next sample is <=200 ms away.
+  RCCHECK(rclc_publisher_init_best_effort(&pub_front, &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8), "/ultrasonic/front"));
+  RCCHECK(rclc_publisher_init_best_effort(&pub_left, &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8), "/ultrasonic/left"));
+  RCCHECK(rclc_publisher_init_best_effort(&pub_right, &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8), "/ultrasonic/right"));
+  // cmd_vel best-effort too: we want the freshest command, not a retransmitted stale one.
+  RCCHECK(rclc_subscription_init_best_effort(&sub_cmd, &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist), "/cmd_vel"));
 
-  RCCHECK(rclc_timer_init_default(&timer, &support, RCL_MS_TO_NS(100), on_timer));
+  RCCHECK(rclc_timer_init_default(&timer, &support, RCL_MS_TO_NS(50), on_timer));
   executor = rclc_executor_get_zero_initialized_executor();
   RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
   RCCHECK(rclc_executor_add_timer(&executor, &timer));
   RCCHECK(rclc_executor_add_subscription(&executor, &sub_cmd, &cmd_msg, &on_cmd, ON_NEW_DATA));
-
-  fill_range(&range_front, "us_front");
-  fill_range(&range_left,  "us_left");
-  fill_range(&range_right, "us_right");
   return true;
 }
 
@@ -174,6 +180,8 @@ void setup() {
   // Manual, non-blocking WiFi join with status logging. status codes: 0=IDLE
   // 1=NO_SSID_AVAIL 3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. Scan results printed too.
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);   // disable modem power-save: default sleep adds 100-200 ms of RX
+                          // latency + jitter to incoming /cmd_vel. Costs battery, worth it.
   int n = WiFi.scanNetworks();
   Serial.printf("[microbot] scan found %d networks:\n", n);
   for (int i = 0; i < n; i++)
@@ -213,7 +221,9 @@ void loop() {
       if (state == WAITING_AGENT) destroy_entities();
       break;
     case AGENT_CONNECTED:
-      EXEC_EVERY(200, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 3))
+      // 1 attempt, not 3: a failed 3-try ping blocks up to 300 ms right next to the
+      // executor spin. 1 try caps the stall at 100 ms; a real drop is still caught.
+      EXEC_EVERY(200, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1))
                               ? AGENT_CONNECTED : AGENT_DISCONNECTED);
       if (state == AGENT_CONNECTED)
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(20));

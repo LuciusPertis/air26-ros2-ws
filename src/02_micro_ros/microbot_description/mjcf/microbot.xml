@@ -21,8 +21,30 @@
     <geom name="wall_s" type="box" size="1.6 0.05 0.15" pos="0 -1.6 0.15" rgba="0.5 0.4 0.3 1"/>
     <geom name="wall_e" type="box" size="0.05 1.6 0.15" pos="1.6 0 0.15" rgba="0.5 0.4 0.3 1"/>
     <geom name="wall_w" type="box" size="0.05 1.6 0.15" pos="-1.6 0 0.15" rgba="0.5 0.4 0.3 1"/>
-    <geom name="pillar_1" type="box" size="0.12 0.12 0.15" pos="1.0 0.0 0.15" rgba="0.7 0.3 0.3 1"/>
+    <geom name="pillar_1" type="box" size="0.12 0.12 0.15" pos="1.0 0.0 0.15" rgba="0.3 0.7 0.7 1"/>
     <geom name="pillar_2" type="box" size="0.12 0.12 0.15" pos="-0.6 0.8 0.15" rgba="0.7 0.3 0.3 1"/>
+
+    <!-- ===== movable boxes (free bodies) =====
+         Each is a dynamic rigid body via <freejoint>, so it falls, is pushed by the
+         rover, AND can be grabbed in the native MuJoCo viewer: double-click to select,
+         then Ctrl + right-drag = translate, Ctrl + left-drag = rotate. Nothing in ROS
+         controls them. density=200 (light) so the kinematic base can shove them around;
+         the default 1000 would make a ~26 kg block the rover can't budge. -->
+    <body name="box_1" pos="0.4 -0.5 0.12">
+      <freejoint name="box_1_free"/>
+      <geom type="box" size="0.10 0.10 0.12" rgba="0.9 0.7 0.2 1"
+            density="200" friction="1 0.02 0.001"/>
+    </body>
+    <body name="box_2" pos="0.4 0.5 0.12">
+      <freejoint name="box_2_free"/>
+      <geom type="box" size="0.10 0.10 0.12" rgba="0.9 0.7 0.2 1"
+            density="200" friction="1 0.02 0.001"/>
+    </body>
+    <body name="box_3" pos="-0.9 -0.7 0.12">
+      <freejoint name="box_3_free"/>
+      <geom type="box" size="0.10 0.10 0.12" rgba="0.6 0.3 0.8 1"
+            density="200" friction="1 0.02 0.001"/>
+    </body>
 
     <!-- ===== robot (planar kinematic base at z=0.10) ===== -->
     <body name="base_link" pos="0 0 0.10">

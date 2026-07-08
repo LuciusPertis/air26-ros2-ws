@@ -21,8 +21,9 @@ from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Range
+from std_msgs.msg import UInt8
 
 from microbot_interfaces.srv import CheckOpenings
 from microbot_interfaces.action import EscapeObstacle
@@ -32,21 +33,23 @@ TURN_W = 0.9*_factor        # rad/s while turning
 BACK_V = -0.15*_factor      # m/s while backing up
 TURN_90_T = 1.8*_factor     # s to turn ~90 deg
 TURN_180_T = 3.6*_factor    # s to turn ~180 deg
-BACK_T = 1.5*_factor        # s to back up
+BACK_T = 2.5*_factor        # s to back up
 
 
 class ObstacleServices(Node):
 
     def __init__(self):
         super().__init__('obstacle_services')
-        self.declare_parameter('side_threshold', 0.50) # increasing acceptable opening distance 
+        self.declare_parameter('side_threshold', 50)  # cm (was 0.50 m)
         cb = ReentrantCallbackGroup()
 
-        self.left = self.right = 99.0
-        self.create_subscription(Range, '/ultrasonic/left',
-                                 lambda m: setattr(self, 'left', m.range), 10)
-        self.create_subscription(Range, '/ultrasonic/right',
-                                 lambda m: setattr(self, 'right', m.range), 10)
+        self.left = self.right = 255   # cm; 255 = "far / no reading yet"
+        # best-effort to match the sim driver / real ESP32 sensor QoS (latency branch).
+        sensor_qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
+        self.create_subscription(UInt8, '/ultrasonic/left',
+                                 lambda m: setattr(self, 'left', m.data), sensor_qos)
+        self.create_subscription(UInt8, '/ultrasonic/right',
+                                 lambda m: setattr(self, 'right', m.data), sensor_qos)
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
         # === CHECKPOINT: service ===
@@ -69,8 +72,6 @@ class ObstacleServices(Node):
     def check_openings(self, request, response):
         thr = request.threshold if request.threshold > 0 else \
             self.get_parameter('side_threshold').value
-        response.left_range = float(self.left)
-        response.right_range = float(self.right)
         response.left_open = self.left > thr
         response.right_open = self.right > thr
         self.get_logger().info(

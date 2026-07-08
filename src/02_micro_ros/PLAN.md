@@ -56,4 +56,11 @@ colours. One xacro for RViz/Gazebo (`use_gazebo` arg) + an MJCF for MuJoCo.
 - MuJoCo base is a **kinematic planar joint** (driver maps Twist→base velocity); obstacles
   are made solid by a front-range gate + an arena position clamp (so it can't phase through
   or leave). Real skid-steer friction was intentionally avoided as overkill for teaching.
+- **Obstacles = 2 fixed pillars (static geoms) + 3 movable boxes (`<freejoint>` free bodies,
+  `density=200`).** The boxes are rover-pushable AND mouse-draggable in the native viewer
+  (double-click select → Ctrl-drag) with no ROS involvement — a live way to provoke sensor
+  reactions. They're positioned to stage the **B3 both-sides-blocked case**: two boxes flank
+  the start pocket + pillar ahead ⇒ a straight-ish random walk earns the `back up → 180°`
+  escape signature. Free joints sort to the front of `qpos`; the driver indexes every joint
+  **by name** (`mj_name2id`), so the added DOFs don't shift its addressing.
 - Run long-running nodes as their own processes/launch (the usual one-sim-at-a-time hygiene).

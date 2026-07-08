@@ -27,6 +27,7 @@ setup(
         'console_scripts': [
             'mujoco_driver = microbot_sim.mujoco_driver:main',
             'scan_to_range = microbot_sim.scan_to_range:main',
+            'range_viz_bridge = microbot_sim.range_viz_bridge:main',
         ],
     },
 )

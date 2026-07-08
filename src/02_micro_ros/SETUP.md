@@ -23,6 +23,12 @@ ros2 service call /set_behavior microbot_interfaces/srv/SetBehavior "{behavior: 
 On a GPU-less box use the offscreen viewer path:
 `MUJOCO_GL=egl ros2 launch microbot_sim mujoco.launch.py use_viewer:=false use_rviz:=true`.
 
+**Movable boxes / interactive viewer.** The default `use_viewer:=true` opens MuJoCo's native
+passive viewer (`launch_passive`) — no extra flags needed. The arena's 3 amber/purple boxes
+are free bodies you can **double-click + Ctrl-drag** to rearrange live (independent of ROS),
+and the rover pushes them; the range cones in RViz shrink/grow as they move. Dragging needs a
+real window, so it only works with `use_viewer:=true` (not the headless `egl` path above).
+
 ## Deferred — Gazebo (Ignition) target
 A second sim was planned (Gazebo Sim, already installed from project 07). It is **not built
 yet**: needs `urdf/microbot.gazebo.xacro` (Ignition `DiffDrive` system + 3 narrow

@@ -1,9 +1,7 @@
 # Instant query (request/response): are the left/right sides open right now?
 # Used by behaviour 3 before deciding how to escape. A SERVICE is the right tool:
 # one question, one immediate answer, no ongoing stream.
-float32 threshold     # distance (m) considered "open"; <=0 uses the server default
+uint8 threshold       # distance (cm) considered "open"; 0 uses the server default
 ---
 bool left_open
 bool right_open
-float32 left_range
-float32 right_range
