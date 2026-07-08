@@ -27,18 +27,19 @@ from sensor_msgs.msg import Range
 from microbot_interfaces.srv import CheckOpenings
 from microbot_interfaces.action import EscapeObstacle
 
-TURN_W = 0.9        # rad/s while turning
-BACK_V = -0.15      # m/s while backing up
-TURN_90_T = 1.8     # s to turn ~90 deg
-TURN_180_T = 3.6    # s to turn ~180 deg
-BACK_T = 1.5        # s to back up
+_factor = 1.8 # scale factor to tweak timing; this is a trial and error thing, since we don't have odometry feedback to know how far we have turned or backed up. The robot is not very precise, so we need to overshoot a bit to make sure it actually turns enough to escape the obstacle.
+TURN_W = 0.9*_factor        # rad/s while turning
+BACK_V = -0.15*_factor      # m/s while backing up
+TURN_90_T = 1.8*_factor     # s to turn ~90 deg
+TURN_180_T = 3.6*_factor    # s to turn ~180 deg
+BACK_T = 1.5*_factor        # s to back up
 
 
 class ObstacleServices(Node):
 
     def __init__(self):
         super().__init__('obstacle_services')
-        self.declare_parameter('side_threshold', 0.35)
+        self.declare_parameter('side_threshold', 0.50) # increasing acceptable opening distance 
         cb = ReentrantCallbackGroup()
 
         self.left = self.right = 99.0
@@ -91,7 +92,7 @@ class ObstacleServices(Node):
                      ('turning_180', 0.0, TURN_W, TURN_180_T)]
             outcome = 'backed_and_turned'
 
-        total = sum(s[3] for s in steps)
+        total_time_req = sum(s[3] for s in steps)
         elapsed = 0.0
         for label, lin, ang, dur in steps:
             t0 = time.time()
@@ -107,7 +108,7 @@ class ObstacleServices(Node):
                 self.cmd_pub.publish(tw)
                 fb = EscapeObstacle.Feedback()
                 fb.step = label
-                fb.progress = min((elapsed + (time.time() - t0)) / total, 1.0)
+                fb.progress = min((elapsed + (time.time() - t0)) / total_time_req, 1.0)
                 goal_handle.publish_feedback(fb)
                 time.sleep(0.1)
             elapsed += dur
@@ -132,6 +133,6 @@ def main(args=None):
         if rclpy.ok():
             rclpy.shutdown()
 
-
+ 
 if __name__ == '__main__':
     main()

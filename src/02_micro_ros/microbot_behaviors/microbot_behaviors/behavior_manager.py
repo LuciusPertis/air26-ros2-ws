@@ -45,7 +45,7 @@ class BehaviorManager(Node):
 
         self.behavior = 1
         self.state = WALK
-        self.front = self.left = self.right = 99.0
+        self.front = 99.0
         self.walk_cmd = Twist()
         self.t_next_sample = 0.0
         self.t_state_end = 0.0
@@ -53,11 +53,7 @@ class BehaviorManager(Node):
         self.escape_handle = None
 
         self.create_subscription(Range, '/ultrasonic/front',
-                                 lambda m: setattr(self, 'front', m.range), 10)
-        self.create_subscription(Range, '/ultrasonic/left',
-                                 lambda m: setattr(self, 'left', m.range), 10)
-        self.create_subscription(Range, '/ultrasonic/right',
-                                 lambda m: setattr(self, 'right', m.range), 10)
+                                 lambda m: setattr(self, 'front', m.range), 2) # shortening the queue size to 2 (old 10); avoids old readings when robot is stopped; keeps latest reading
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.create_service(SetBehavior, '/set_behavior', self.on_set_behavior)
 
@@ -65,7 +61,7 @@ class BehaviorManager(Node):
         self.check_cli = self.create_client(CheckOpenings, '/check_openings')
         self.escape_cli = ActionClient(self, EscapeObstacle, '/escape_obstacle')
 
-        self.create_timer(0.1, self.control_loop)   # 10 Hz
+        self.create_timer(0.02, self.control_loop)   # earlier 0.1=>10 Hz ; now 0.02=>50 Hz
         self.get_logger().info('behavior_manager up: behaviour=1, random walking. '
                                'Switch with /set_behavior.')
 
@@ -76,7 +72,7 @@ class BehaviorManager(Node):
             response.message = 'behavior must be 1, 2 or 3'
             return response
         # cancel an in-flight escape if we're leaving B3
-        if self.state == B3_ESCAPE and self.escape_handle is not None:
+        if self.state == B3_ESCAPE and self.escape_handle is not None and request.behavior != 3: # repeated B3 requests are allowed, we don't want to cancel the action if we're staying in B3
             self.escape_handle.cancel_goal_async()
         self.behavior = request.behavior
         self.state = WALK
@@ -95,7 +91,7 @@ class BehaviorManager(Node):
         self.walk_cmd.angular.z = random.uniform(-0.4, 0.4)        # rand small angular vel
         self.t_next_sample = self.now() + self.get_parameter('walk_period').value
 
-    # ---------- the 10 Hz control loop ----------
+    # ---------- the 50 Hz control loop ----------
     def control_loop(self):
         t = self.now()
 
@@ -110,7 +106,7 @@ class BehaviorManager(Node):
 
         if self.state == B2_TURN:
             tw = Twist()
-            tw.angular.z = 0.9 * self.turn_dir
+            tw.angular.z = 0.9 * self.turn_dir # if we really want to turn it proper 90 degrees, we need feedback from the odometry !
             self.cmd_pub.publish(tw)
             if t >= self.t_state_end:
                 self.state = WALK
@@ -146,10 +142,20 @@ class BehaviorManager(Node):
 
     # ---------- B3: service query, then action maneuver ----------
     def start_escape(self):
-        if not self.check_cli.service_is_ready():
-            self.get_logger().warn('/check_openings not ready; resuming walk')
-            self.state = WALK
-            return
+        self.check_cli.wait_for_service(timeout_sec=2.0) # we have already stoped; avoids looping back to control_loop and triggering another obstacle response while waiting for the service to be ready
+        
+        # if not self.check_cli.service_is_ready():
+        #     self.get_logger().warn('/check_openings not ready; resuming walk')
+        #     self.state = WALK   # control_loop(:WALK) -> trigger_obstacle_response(:B3) -> back to start_escape() | last published /cmd_vel is stop
+        #     return
+
+        # new loop
+        while not self.check_cli.service_is_ready():
+            self.get_logger().warn('/check_openings not ready; waiting 1s and retrying')
+            self.check_cli.wait_for_service(timeout_sec=2.0)
+            # we can either sleep or spin once to allow the service to be ready; if we sleep, we need to make sure we don't block the control loop for too long
+            # self.sleep(1.0)  # wait a bit before retrying 
+
         req = CheckOpenings.Request()
         req.threshold = 0.0                               # use server default
         self.check_cli.call_async(req).add_done_callback(self.on_openings)
@@ -165,6 +171,7 @@ class BehaviorManager(Node):
     def on_escape_accepted(self, fut):
         handle = fut.result()
         if not handle.accepted:
+            self.get_logger().warn('/escape_obstacle goal REJECTED; resuming walk')
             self.state = WALK
             return
         self.escape_handle = handle
