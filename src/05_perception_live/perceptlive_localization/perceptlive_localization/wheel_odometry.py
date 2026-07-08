@@ -15,7 +15,7 @@ class EnhancedWheelOdometryNode(Node):
 
         # Removed steering joints, keeping differential drive parameters
         self.declare_parameter('wheel_radius', 0.034) 
-        self.declare_parameter('track_width', 0.1255) 
+        self.declare_parameter('track_width', 0.251) 
         self.declare_parameter('odom_frame', 'odom')
         self.declare_parameter('base_frame', 'base_footprint')
         self.declare_parameter('left_wheel_joint', 'base_back_left_wheel_joint')
