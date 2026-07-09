@@ -32,7 +32,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
     desc = get_package_share_directory('microbot_description')
     xacro_file = os.path.join(desc, 'urdf', 'microbot.urdf.xacro')
-    rviz_cfg = os.path.join(desc, 'rviz', 'microbot.rviz')
+    rviz_cfg = os.path.join(desc, 'rviz', 'microbot_real.rviz')   # Fixed Frame = base_link
     robot_description = ParameterValue(Command(['xacro ', xacro_file]), value_type=str)
 
     ld = LaunchDescription()
@@ -57,6 +57,15 @@ def generate_launch_description():
     ld.add_action(Node(
         package='robot_state_publisher', executable='robot_state_publisher',
         parameters=[{'robot_description': robot_description}]))
+
+    # No odom/world frame here — RViz's Fixed Frame is base_link (microbot_real.rviz). The only
+    # TF is the robot describing its OWN links (robot_state_publisher, from the URDF), which is
+    # what places the model + the us_front/left/right frames the range cones attach to. The 4
+    # wheel joints are 'continuous', so they need /joint_states to have a TF; the firmware sends
+    # none, so joint_state_publisher pins them at 0 (wheels render but don't spin). That's it —
+    # no odom, no static world transform.
+    ld.add_action(Node(
+        package='joint_state_publisher', executable='joint_state_publisher'))
 
     # --- viz-only: UInt8 cm -> sensor_msgs/Range on /ultrasonic/*/range, for RViz ---
     ld.add_action(Node(

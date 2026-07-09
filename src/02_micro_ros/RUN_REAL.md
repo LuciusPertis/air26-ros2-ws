@@ -84,8 +84,18 @@ ros2 launch microbot_sim real.launch.py agent:=true
 | `use_rviz` | `true` | RViz + the `range_viz_bridge` (UInt8 cm → `Range` for the cones) |
 | `behaviors` | `true` | `behavior_manager` + `obstacle_services` |
 
-It starts: `robot_state_publisher`, `range_viz_bridge` (viz-only), `rviz2`, and the two
-behaviour nodes. It does **not** start `mujoco_driver` — the board is the driver.
+It starts: `robot_state_publisher`, `joint_state_publisher`, `range_viz_bridge` (viz-only),
+`rviz2` (with `microbot_real.rviz`), and the two behaviour nodes. It does **not** start
+`mujoco_driver` — the board is the driver.
+
+> **No odom, static model — by design.** The firmware publishes no odometry/TF, so this launch
+> uses **no `odom`/world frame at all**: RViz's Fixed Frame is **`base_link`**
+> (`microbot_real.rviz`). The only TF is the robot describing its **own links**
+> (`robot_state_publisher`, straight from the URDF) — that's what places the model and the
+> `us_front/left/right` frames the range cones attach to. The 4 wheel joints are `continuous`,
+> so `joint_state_publisher` pins them at 0 (wheels render but don't spin). The model sits at the
+> origin and doesn't move — you're watching the **live ultrasonic cones**, not the robot's
+> position. That's all this view needs.
 
 ---
 
