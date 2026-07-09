@@ -91,7 +91,7 @@ class BehaviorManager(Node):
 
     def sample_walk(self):
         self.walk_cmd = Twist()
-        self.walk_cmd.linear.x = random.uniform(0.08, 0.20)        # rand linear vel
+        self.walk_cmd.linear.x = random.uniform(0.08, 0.1)        # rand linear vel
         self.walk_cmd.angular.z = random.uniform(-0.4, 0.4)        # rand small angular vel
         self.t_next_sample = self.now() + self.get_parameter('walk_period').value
 
