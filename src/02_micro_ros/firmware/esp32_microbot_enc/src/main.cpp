@@ -1,21 +1,27 @@
-// AIR26 Workshop 02 — ESP32 micro-ROS firmware for the obstacle-avoider rover.
+// AIR26 Workshop 02 — ESP32 micro-ROS firmware, ENCODER (closed-loop) variant.
 //
-// ESP32-S3 micro-ROS firmware for the obstacle-avoider rover.
-// This is the REAL robot's brain-stem. It exposes the SAME ROS 2 interface as the
-// MuJoCo sim, so the microbot_behaviors nodes drive it unchanged:
-//     publishes: /ultrasonic/front|left|right   (std_msgs/UInt8, cm)   <- 3x HC-SR04
-//     subscribes: /cmd_vel                       (geometry_msgs/Twist) -> L298N motors
+// Same robot, same ROS 2 interface as firmware/esp32_microbot, BUT the motors are the
+// JGB37-520 DC gear motors with magnetic quadrature encoders, and this firmware CLOSES THE
+// SPEED LOOP: it reads the encoders, works out how fast each side is *actually* turning
+// (wheel diameter x rev/s), and trims the PWM so the measured speed matches the /cmd_vel
+// command. Result: the distance/speed driven actually matches what was asked — no more
+// open-loop guesswork through MAX_LIN.
 //
-// LATENCY BRANCH (10-fix): this firmware DELIBERATELY diverges from the MuJoCo sim to cut
-// sim-to-real latency. Ultrasonics ship as std_msgs/UInt8 centimetres (no header/frame_id
-// string), best-effort QoS, weighted round-robin polling, WiFi power-save off. A host-side
-// bridge re-inflates UInt8 -> sensor_msgs/Range for the RViz viz feed. See LATENCY.md.
+//   IMPORTANT: this firmware still publishes NO odometry. The encoders are used ONLY to
+//   regulate wheel speed on-board. Nothing new goes on the wire; the ROS interface is
+//   byte-for-byte identical to the open-loop firmware:
+//     publishes:  /ultrasonic/front|left|right   (std_msgs/UInt8, cm)   <- 3x HC-SR04
+//     subscribes: /cmd_vel                        (geometry_msgs/Twist) -> L298N motors
+//
+// LATENCY BRANCH (10-fix): ultrasonics are std_msgs/UInt8 cm, best-effort QoS, round-robin
+// polling, WiFi power-save off. A host-side bridge re-inflates UInt8 -> Range for RViz.
+// See LATENCY.md.
 //
 // Transport: WiFi/UDP to the micro-ROS Agent. Flash over USB, then it runs untethered.
 //
 // >>> EDIT THE CONFIG BLOCK BELOW for your WiFi, your Agent's IP, and your wiring. <<<
-// Hardware: ESP32-S3 + L298N dual H-bridge (skid-steer: left pair / right pair)
-// + 3x HC-SR04. If you use a different motor driver, only drive_side()/setup change.
+// Motor: JGB37-520 (6-pin: M1, GND, C2, C1, VCC, M2). M1/M2 -> L298N motor output;
+//        VCC/GND power the encoder (3.3 V); C1/C2 are the two quadrature channels (A/B).
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -43,18 +49,31 @@ static const int US_RIGHT[2] = {14, 21};
 static const int L_EN = 6,  L_IN1 = 4, L_IN2 = 5;      // ENA, IN1, IN2
 static const int R_EN = 16, R_IN1 = 7, R_IN2 = 15;     // ENB, IN3, IN4
 
+// JGB37-520 quadrature encoders: {A=C1, B=C2} pins, one encoder per side (free S3 GPIOs).
+// C1/C2 to these pins; encoder VCC->3V3, GND->GND. If a side reads speed with the WRONG
+// SIGN (integrator runs away / motor fights the command), swap that side's A/B pins.
+static const int ENC_L[2] = {17, 18};   // left  {A, B}
+static const int ENC_R[2] = {8, 9};     // right {A, B}
+
 // Kinematics / tuning
 static const float WHEEL_SEP   = 0.28f;   // m, left-right track width
-// MAX_LIN = the robot's top linear speed at full PWM. This is an EMPIRICAL, END-TO-END
-// calibration constant: it already absorbs wheel diameter, gear ratio, motor Kv, and
-// battery voltage all at once. There is deliberately NO separate wheel-diameter term here
-// because this firmware is OPEN-LOOP (no encoders) — it maps commanded m/s straight to PWM
-// duty (see on_cmd), so it cannot convert m/s -> wheel rad/s and never needs the radius.
-// Calibrate by driving the real robot at full PWM and measuring its top speed; set that here.
-// (The encoder variant firmware/esp32_microbot_enc DOES close the loop and use the radius.)
-static const float MAX_LIN     = 0.25f;   // m/s at full PWM (empirical; see note above)
+static const float MAX_LIN     = 0.25f;   // m/s at full PWM — here only a feedforward guess;
+                                          // the PI loop corrects whatever it gets wrong.
 static const int   PWM_FREQ    = 1000;    // Hz
 static const int   US_MAX_M    = 2;       // clamp ultrasonic range (m)
+
+// ---- Encoder -> real wheel speed (THIS is where wheel diameter finally matters) ----
+static const float WHEEL_DIA   = 0.065f;  // m (65 mm) — MEASURE your actual wheel!
+static const int   ENC_PPR     = 11;      // encoder lines per MOTOR-shaft rev, per channel
+static const float GEAR_RATIO  = 30.0f;   // JGB37-520 motor:output gearbox (CHECK your unit)
+// We interrupt on ONE channel's rising edge (1x decoding), so we accumulate PPR*gear ticks
+// per OUTPUT-shaft (wheel) revolution. Distance per tick = pi*WHEEL_DIA / ticks_per_rev.
+static const float ENC_TICKS_PER_REV = ENC_PPR * GEAR_RATIO;      // e.g. 11*30 = 330
+
+// Per-side speed PI controller (starting values — students tune these).
+static const float CONTROL_HZ = 50.0f;    // control-loop rate
+static const float KP = 2.0f;             // proportional gain (duty per m/s error)
+static const float KI = 6.0f;             // integral gain
 // ========================================================================
 
 // ---- micro-ROS handles ----
@@ -64,9 +83,22 @@ rcl_allocator_t allocator;
 rclc_executor_t executor;
 rcl_publisher_t pub_front, pub_left, pub_right;
 rcl_subscription_t sub_cmd;
-rcl_timer_t timer;
+rcl_timer_t timer;          // ultrasonic round-robin
+rcl_timer_t ctrl_timer;     // encoder speed loop
 std_msgs__msg__UInt8 range_front, range_left, range_right;   // centimetres (0..US_MAX_M*100)
 geometry_msgs__msg__Twist cmd_msg;
+
+// ---- one skid-steer side: encoder count (ISR) + speed target + PI integrator ----
+struct SideCtl {
+  int en, in1, in2;             // L298N pins
+  const int* enc;               // {A, B} pins
+  volatile long ticks;          // signed encoder count (updated in ISR)
+  long  last_ticks;             // snapshot at previous control tick
+  float target_v;               // commanded wheel speed (m/s)
+  float integ;                  // PI integrator state
+};
+SideCtl L = {L_EN, L_IN1, L_IN2, ENC_L, 0, 0, 0.0f, 0.0f};
+SideCtl R = {R_EN, R_IN1, R_IN2, ENC_R, 0, 0, 0.0f, 0.0f};
 
 // ---- agent connection state machine (standard micro-ROS reconnect pattern) ----
 enum AgentState { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED };
@@ -75,6 +107,13 @@ AgentState state = WAITING_AGENT;
 #define RCCHECK(fn)    { if ((fn) != RCL_RET_OK) return false; }
 #define EXEC_EVERY(MS, X)  do { static volatile int64_t t=-1; \
   if (t==-1) t=uxr_millis(); if ((int32_t)(uxr_millis()-t) > (MS)) { X; t=uxr_millis(); } } while (0)
+
+// === CHECKPOINT: encoder_isr ===
+// Quadrature: interrupt on channel A rising, direction from channel B level. Forward -> ++.
+// (If a wheel counts the wrong way, swap that side's ENC_* {A,B} pins in the config block.)
+void IRAM_ATTR isr_left()  { if (digitalRead(ENC_L[1])) L.ticks--; else L.ticks++; }
+void IRAM_ATTR isr_right() { if (digitalRead(ENC_R[1])) R.ticks--; else R.ticks++; }
+// === END CHECKPOINT: encoder_isr ===
 
 // ---- HC-SR04: one blocking ping -> metres ----
 float read_ultrasonic(const int pins[2]) {
@@ -95,15 +134,47 @@ void drive_side(int en, int in1, int in2, float cmd) {
   analogWrite(en, (int)(fabs(cmd) * 255));
 }
 
-// ---- /cmd_vel -> differential mixing ----
+// ---- /cmd_vel -> per-side SPEED TARGETS (m/s). The control loop does the driving. ----
 void on_cmd(const void* msgin) {
   const geometry_msgs__msg__Twist* m = (const geometry_msgs__msg__Twist*)msgin;
   float v = m->linear.x, w = m->angular.z;
-  float left  = (v - w * WHEEL_SEP / 2.0f) / MAX_LIN;
-  float right = (v + w * WHEEL_SEP / 2.0f) / MAX_LIN;
-  drive_side(L_EN, L_IN1, L_IN2, left);
-  drive_side(R_EN, R_IN1, R_IN2, right);
+  L.target_v = v - w * WHEEL_SEP / 2.0f;
+  R.target_v = v + w * WHEEL_SEP / 2.0f;
 }
+
+// === CHECKPOINT: closed_loop_velocity ===
+// One PI step for a side: measured speed -> duty. Feedforward (target/MAX_LIN) gives a fast
+// first guess; P+I correct whatever MAX_LIN / battery / load got wrong. This is exactly the
+// step the open-loop firmware CAN'T do, because without encoders it has no measured speed.
+float pi_step(SideCtl& s, float v_meas, float dt) {
+  float err = s.target_v - v_meas;
+  s.integ += err * dt;
+  // anti-windup: keep the integral term within the actuator range [-1, 1].
+  if (KI * s.integ >  1.0f) s.integ =  1.0f / KI;
+  if (KI * s.integ < -1.0f) s.integ = -1.0f / KI;
+  float duty = s.target_v / MAX_LIN + KP * err + KI * s.integ;   // feedforward + PI
+  return constrain(duty, -1.0f, 1.0f);
+}
+
+// ---- control timer: turn encoder ticks into real m/s and regulate both sides ----
+void on_control(rcl_timer_t*, int64_t) {
+  static uint32_t last_us = 0;
+  uint32_t now = micros();
+  float dt = last_us ? (now - last_us) * 1e-6f : (1.0f / CONTROL_HZ);
+  last_us = now;
+  if (dt < 1e-4f) return;                          // guard against a zero/tiny dt
+
+  long lt = L.ticks, rt = R.ticks;                 // 32-bit reads are atomic on ESP32
+  // ticks -> wheel revs -> metres travelled -> m/s. WHEEL_DIA enters right here.
+  float mpt = 3.14159265f * WHEEL_DIA / ENC_TICKS_PER_REV;   // metres per tick
+  float vL = (lt - L.last_ticks) * mpt / dt;
+  float vR = (rt - R.last_ticks) * mpt / dt;
+  L.last_ticks = lt;  R.last_ticks = rt;
+
+  drive_side(L.en, L.in1, L.in2, pi_step(L, vL, dt));
+  drive_side(R.en, R.in1, R.in2, pi_step(R, vR, dt));
+}
+// === END CHECKPOINT: closed_loop_velocity ===
 
 // ---- read one sensor -> clamp to centimetres -> publish its UInt8 ----
 void poll_and_publish(const int pins[2], std_msgs__msg__UInt8* msg, rcl_publisher_t* pub) {
@@ -144,9 +215,17 @@ bool create_entities() {
     ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist), "/cmd_vel"));
 
   RCCHECK(rclc_timer_init_default(&timer, &support, RCL_MS_TO_NS(50), on_timer));
+  RCCHECK(rclc_timer_init_default(&ctrl_timer, &support,
+    RCL_MS_TO_NS((int)(1000.0f / CONTROL_HZ)), on_control));
+
+  // fresh start: don't let counts accumulated before connect spike the first control tick.
+  L.last_ticks = L.ticks;  R.last_ticks = R.ticks;
+  L.integ = R.integ = 0.0f;  L.target_v = R.target_v = 0.0f;
+
   executor = rclc_executor_get_zero_initialized_executor();
-  RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
+  RCCHECK(rclc_executor_init(&executor, &support.context, 3, &allocator));   // 2 timers + sub
   RCCHECK(rclc_executor_add_timer(&executor, &timer));
+  RCCHECK(rclc_executor_add_timer(&executor, &ctrl_timer));
   RCCHECK(rclc_executor_add_subscription(&executor, &sub_cmd, &cmd_msg, &on_cmd, ON_NEW_DATA));
   return true;
 }
@@ -159,6 +238,7 @@ void destroy_entities() {
   rcl_publisher_fini(&pub_right, &node);
   rcl_subscription_fini(&sub_cmd, &node);
   rcl_timer_fini(&timer);
+  rcl_timer_fini(&ctrl_timer);
   rclc_executor_fini(&executor);
   rcl_node_fini(&node);
   rclc_support_fini(&support);
@@ -172,6 +252,13 @@ void setup() {
   drive_side(L_EN, L_IN1, L_IN2, 0);
   drive_side(R_EN, R_IN1, R_IN2, 0);
 
+  // === CHECKPOINT: encoder_isr ===
+  // encoder channels as inputs + attach the quadrature interrupts.
+  for (int p : {ENC_L[0], ENC_L[1], ENC_R[0], ENC_R[1]}) pinMode(p, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(ENC_L[0]), isr_left,  RISING);
+  attachInterrupt(digitalPinToInterrupt(ENC_R[0]), isr_right, RISING);
+  // === END CHECKPOINT: encoder_isr ===
+
   // === CHECKPOINT: serial_diag ===
   // Boot/WiFi/Agent diagnostics on the USB serial console (115200). Comment out this
   // block to run fully headless. `pio device monitor` shows the IP + connection state.
@@ -179,7 +266,7 @@ void setup() {
   delay(300);
   Serial.println();
   Serial.printf("[microbot] boot. connecting to WiFi SSID='%s' ...\n", WIFI_SSID);
-  
+
   //old esp32-dev//   Manual, non-blocking WiFi join with status logging (don't hang forever like the
   //old esp32-dev//   default set_microros_wifi_transports loop). status codes: 0=IDLE 1=NO_SSID_AVAIL
   //old esp32-dev//   3=CONNECTED 4=CONNECT_FAILED 6=DISCONNECTED. NO_SSID on a classic ESP32 usually
@@ -236,7 +323,8 @@ void loop() {
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(20));
       break;
     case AGENT_DISCONNECTED:
-      drive_side(L_EN, L_IN1, L_IN2, 0);     // safety: stop on link loss
+      L.target_v = R.target_v = 0.0f;        // safety: stop on link loss
+      drive_side(L_EN, L_IN1, L_IN2, 0);
       drive_side(R_EN, R_IN1, R_IN2, 0);
       destroy_entities();
       state = WAITING_AGENT;

@@ -46,12 +46,28 @@ one interface (both publish `UInt8`), instead of diverging.
 - **`microbot_sim/range_viz_bridge`** (NEW, viz-only, off the control loop): subscribes the 3
   `UInt8` topics, republishes `sensor_msgs/Range` (m) on `/ultrasonic/*/range` **only for RViz**.
   Launched with RViz in `mujoco.launch.py` (gated on `use_rviz`). RViz config repointed to
-  `/ultrasonic/*/range`. *(No odom on the real robot — firmware has no encoders — so the real
-  RViz feed is ultrasonics-only.)*
+  `/ultrasonic/*/range`. *(The firmware publishes no odom, so the real RViz feed is
+  ultrasonics-only.)*
 
 **Status: complete and verified headless** — sim publishes `UInt8` cm (e.g. `73`), the bridge
 re-inflates to `Range` (`0.73 m`), `/check_openings` answers a `uint8` cm threshold, and the
 behaviour nodes random-walk without errors. Firmware changes 1–5 are compile-clean (`pio run`).
+
+## Encoder variant — `firmware/esp32_microbot_enc`
+
+A **second firmware** for the case where the JGB37-520 motors' **magnetic quadrature encoders**
+are wired up (they were hidden for the assignment). It **closes the speed loop**: encoder ticks
+→ actual wheel speed (**this is where wheel diameter finally enters** — `dist = π·WHEEL_DIA / 
+ticks_per_rev`) → per-side **PI controller** trims the PWM so the driven speed matches `/cmd_vel`.
+
+- Fixes the open-loop firmware's core weakness: `MAX_LIN` is a single lumped guess, so commanded
+  vs. actual speed drift with battery/load. The loop measures and corrects.
+- **Still publishes NO odometry** — encoders are used purely on-board for regulation, so the ROS
+  interface is byte-for-byte identical (same `UInt8` ultrasonics, same `/cmd_vel`).
+- Config: `WHEEL_DIA`, `ENC_PPR`, `GEAR_RATIO`, PI gains `KP`/`KI`, encoder pins `ENC_L`/`ENC_R`.
+  Checkpoints `encoder_isr` + `closed_loop_velocity` mark the added blocks.
+- Contrast to teach: `esp32_microbot` (open-loop, no radius) vs. `esp32_microbot_enc`
+  (closed-loop, radius + rev/s). Same wire interface; different faithfulness of motion.
 
 ## Build / verify
 
