@@ -26,7 +26,7 @@ far wall, and two pillars.
 ## 1. See the new senses
 ```bash
 ros2 topic list | grep camera
-ros2 topic echo /camera/mean_intensity      # one brightness number, 0..1
+ros2 topic echo /camera/light_level      # fraction of the frame that is bright light, 0..1
 ros2 topic echo /camera/mean_color          # average colour (ColorRGBA)
 ros2 topic echo /aruco/detections           # ArUco bbox + id when a marker is in view
 ```
@@ -41,8 +41,11 @@ ros2 service call /set_behavior perceptbot_interfaces/srv/SetBehavior "{behavior
 - **1-3 (from project 02): obstacle avoidance** — random walk; on a close front wall it
   (1) waits, (2) turns randomly, or (3) asks `/check_openings` then runs the cancelable
   `/escape_obstacle` action. Watch the action feedback in the behaviours terminal.
-- **4 light-seek** — spins to search; when the view gets bright enough (`mean_intensity`
-  high) it drives forward → it homes toward the white light panel.
+- **4 light-seek** — spins to search; when enough of the frame is bright light
+  (`light_level` over the threshold) it drives forward → it homes toward the white light
+  panel. (`light_level` is the *fraction of near-white pixels*, so it stays ~0 on the
+  ordinary scene and only rises when the luminous panel is actually in view — a plain frame
+  brightness average would just track the bright sky and never trigger.)
 - **5 colour-seek** — spins to search; when the average colour matches the target
   (`target_color`, green by default) it drives in → it homes toward the green box.
 - **6 ArUco search + approach** — spins until it *sees marker 0*, then launches the
@@ -68,7 +71,7 @@ Every feature is wrapped in `# === CHECKPOINT: <name> ===`. Comment a block, reb
   `behavior_manager.py`). Try `target_color:=[0.8,0.1,0.1]` and add a red box.
 
 ## 5. On real hardware
-The Webots camera and the **ESP32-CAM** publish the *same* `/camera/mean_intensity` and
+The Webots camera and the **ESP32-CAM** publish the *same* `/camera/light_level` and
 `/camera/mean_color`, so behaviours 4 and 5 run on the real board with no code change — the
 sim just swaps for `micro_ros_agent` + the board. For the full image (and ArUco/B6), bridge
 the board's WiFi MJPEG stream into ROS:

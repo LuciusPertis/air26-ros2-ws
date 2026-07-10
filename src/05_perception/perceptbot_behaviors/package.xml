@@ -6,7 +6,7 @@
   <description>
     AIR26 workshop 05 — the switchable behaviours for the perception rover. Keeps the
     three project-02 obstacle behaviours (pub-sub, service+action) and adds three
-    vision behaviours: light-seek (mean_intensity), colour-seek (mean_color) and ArUco
+    vision behaviours: light-seek (light_level), colour-seek (mean_color) and ArUco
     search+approach (ApproachMarker action). Switch any time via /set_behavior.
   </description>
   <maintainer email="luciuspertis@gmail.com">AIR26 Workshop</maintainer>

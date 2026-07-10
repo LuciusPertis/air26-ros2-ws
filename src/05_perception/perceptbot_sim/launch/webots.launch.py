@@ -2,7 +2,7 @@
 
   webots (R2025a) world + Ros2Supervisor (/clock)
   WebotsController -> loads perceptbot_webots.urdf (sensor/camera device tags + /cmd_vel driver)
-  camera_processor -> /camera/mean_intensity, /camera/mean_color
+  camera_processor -> /camera/light_level, /camera/mean_color
   aruco_detector   -> /aruco/detections, /aruco/image
   robot_state_publisher (for RViz/TF), optional rviz2
 
@@ -39,6 +39,11 @@ def generate_launch_description():
     driver = WebotsController(
         robot_name='perceptbot',
         parameters=[{'robot_description': webots_urdf}, sim_time],
+        # The Camera plugin appends /image_color to the device's topicName, so the `camera`
+        # device publishes /camera/image_color. Every other embodiment (MuJoCo, Gazebo, the
+        # real MJPEG bridge) publishes /camera/image_raw — remap so the perception nodes,
+        # the behaviours and the RViz Image display see one topic name everywhere.
+        remappings=[('/camera/image_color', '/camera/image_raw')],
         respawn=True,
     )
 

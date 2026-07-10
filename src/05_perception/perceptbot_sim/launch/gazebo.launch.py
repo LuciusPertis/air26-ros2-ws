@@ -3,7 +3,7 @@
   gz sim (perceptbot.sdf)  -> DiffDrive + 3 gpu_lidars + camera
   ros_gz_bridge            -> /cmd_vel, /scan_*, /camera/*, /odom, /clock
   scan_to_range            -> /scan_* (LaserScan) -> /ultrasonic/* (Range)
-  camera_processor         -> /camera/mean_intensity, /camera/mean_color
+  camera_processor         -> /camera/light_level, /camera/mean_color
   aruco_detector           -> /aruco/* (B6 ArUco is Webots/real-cam; empty here)
   robot_state_publisher
 

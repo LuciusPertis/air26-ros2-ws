@@ -6,7 +6,7 @@
   <description>
     AIR26 workshop 05 — perception nodes that turn a camera image into things a
     behaviour can act on, independent of where the image comes from (Webots sim or
-    the real ESP32-CAM). camera_processor publishes /camera/mean_intensity and
+    the real ESP32-CAM). camera_processor publishes /camera/light_level and
     /camera/mean_color; aruco_detector publishes ArUco detections (+ an annotated
     image). Mirrors the on-board maths the ESP32-CAM does for the cheap topics.
   </description>

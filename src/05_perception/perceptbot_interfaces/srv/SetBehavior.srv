@@ -5,7 +5,7 @@
 #   1 = obstacle: stop + timer            (pub-sub)            [from 02]
 #   2 = obstacle: stop + random turn      (pub-sub)            [from 02]
 #   3 = obstacle: service + escape action (srv + action)       [from 02]
-#   4 = light-seek: steer toward brighter (/camera/mean_intensity)
+#   4 = light-seek: steer toward brighter (/camera/light_level)
 #   5 = colour-seek: chase a target hue   (/camera/mean_color)
 #   6 = ArUco: search then approach marker (srv + ApproachMarker action)
 int8 behavior

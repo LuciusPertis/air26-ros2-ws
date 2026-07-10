@@ -27,11 +27,12 @@ from sensor_msgs.msg import Range
 from perceptbot_interfaces.srv import CheckOpenings
 from perceptbot_interfaces.action import EscapeObstacle
 
+_factor = 1.2 
 TURN_W = 0.9        # rad/s while turning
 BACK_V = -0.15      # m/s while backing up
-TURN_90_T = 1.8     # s to turn ~90 deg
-TURN_180_T = 3.6    # s to turn ~180 deg
-BACK_T = 1.5        # s to back up
+TURN_90_T = 1.8*_factor     # s to turn ~90 deg
+TURN_180_T = 3.6*_factor    # s to turn ~180 deg
+BACK_T = 1.5*_factor        # s to back up
 
 
 class ObstacleServices(Node):

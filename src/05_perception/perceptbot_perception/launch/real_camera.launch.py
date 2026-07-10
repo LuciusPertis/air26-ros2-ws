@@ -1,7 +1,7 @@
 """Run the perception stack against the REAL ESP32-CAM (no simulator).
 
   mjpeg_bridge     -> pulls http://<board-ip>/stream into /camera/image_raw
-  camera_processor -> /camera/mean_intensity, /camera/mean_color   (PC-side copy; the board
+  camera_processor -> /camera/light_level, /camera/mean_color   (PC-side copy; the board
                       also publishes these itself over micro-ROS — either works)
   aruco_detector   -> /aruco/detections, /aruco/image
 

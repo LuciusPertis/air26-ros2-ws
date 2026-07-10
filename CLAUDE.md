@@ -75,7 +75,7 @@ ros2 run <package_name> <node_name>
 | 07_vla_demo | _archived_ `_archive_mini_vla/` | Python | original no-GPU mini-VLA toy (`vla_demo` + `vla_arm_description`); `COLCON_IGNORE`'d, kept for reference |
 | 05_perception | `perceptbot_interfaces` | msgs | `SetBehavior.srv` (1-6), `CheckOpenings.srv`, `EscapeObstacle.action` (from 02) + `ApproachMarker.action` |
 | 05_perception | `perceptbot_description` | Python | project-02 skid-steer base + front camera link (`perceptbot.urdf.xacro`) for RViz/TF |
-| 05_perception | `perceptbot_perception` | Python | `camera_processor` (image→`/camera/mean_intensity`+`mean_color`), `aruco_detector` (image→`vision_msgs/Detection2DArray`+overlay), `mjpeg_bridge` (ESP32-CAM WiFi MJPEG→`/camera/image_raw`) |
+| 05_perception | `perceptbot_perception` | Python | `camera_processor` (image→`/camera/light_level`+`mean_color`), `aruco_detector` (image→`vision_msgs/Detection2DArray`+overlay), `mjpeg_bridge` (ESP32-CAM WiFi MJPEG→`/camera/image_raw`) |
 | 05_perception | `perceptbot_behaviors` | Python | `behavior_manager` (B1-3 obstacle + B4 light + B5 colour + B6 ArUco), `obstacle_services` (B3), `marker_approach` (B6 action) |
 | 05_perception | `perceptbot_sim` | Python | 3 embodiments: **Webots** (`.wbt`+device URDF+driver plugin, `webots.launch.py`), **MuJoCo** (`mujoco_driver` w/ offscreen camera, `mujoco.launch.py`), **Gazebo** (`perceptbot.sdf`+`gz_bridge.yaml`+`scan_to_range`, `gazebo.launch.py`) |
 | 05_perception_live | `perceptlive_description` | Python | copy of 05 `perceptbot_description` (rover URDF + camera) renamed to avoid colcon collision |
@@ -115,7 +115,7 @@ ros2 run <package_name> <node_name>
 > **05 notes:** the project-02 rover **+ a front ESP32-CAM**; "same base, richer senses".
 > **Three embodiments** (like 07): **Webots** (R2025a, primary), **MuJoCo** and **Gazebo**
 > (Fortress) — all expose the same `/cmd_vel` + `/ultrasonic/*` + `/camera/*` interface, so
-> behaviours don't change. 3 camera topics: `/camera/{image_raw,mean_intensity,mean_color}`
+> behaviours don't change. 3 camera topics: `/camera/{image_raw,light_level,mean_color}`
 > (+ `/aruco/detections`). Six behaviours via `/set_behavior`: 1-3 obstacle (from 02), 4
 > light-seek, 5 colour-seek, 6 ArUco search+approach (`/approach_marker` action). **ArUco (B6)
 > is Webots-sim + real-cam only** — MuJoCo/Gazebo do B1-5 (flat marker decals don't render in

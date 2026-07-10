@@ -6,7 +6,7 @@ sim's `camera_processor` does, so the `perceptbot_behaviors` light-seek (B4) and
 
 | Path | Topic / URL | Type | Notes |
 |------|-------------|------|-------|
-| micro-ROS (WiFi/UDP) | `/camera/mean_intensity` | `std_msgs/Float32` | 0..1, computed on-board |
+| micro-ROS (WiFi/UDP) | `/camera/light_level` | `std_msgs/Float32` | 0..1 lit-pixel fraction, on-board |
 | micro-ROS (WiFi/UDP) | `/camera/mean_color` | `std_msgs/ColorRGBA` | r,g,b 0..1, on-board |
 | WiFi HTTP | `http://<board-ip>/stream` | MJPEG | full image (too big for micro-ROS) |
 
@@ -32,7 +32,7 @@ pio device monitor        # monitor_rts/dtr=0 -> opening it won't reboot the boa
 source ~/uros_ws/install/setup.bash
 ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
 # board powered + on the same 2.4 GHz WiFi -> topics appear:
-ros2 topic echo /camera/mean_intensity        # cover/uncover lens -> value swings
+ros2 topic echo /camera/light_level        # lit-pixel fraction: ~0 normally, rises toward a bright light/window
 ros2 topic echo /camera/mean_color
 # full image: open http://<board-ip>/stream in a browser
 ```
@@ -41,7 +41,10 @@ Then run the behaviours; B4/B5 work against the board with **no code change** fr
 ## Status — FLASHED & VERIFIED ON HARDWARE (2026-06-25)
 Flashed an ESP32-CAM (CH340 MB dock, `/dev/ttyUSB0`); PSRAM 4 MB, camera OK, WiFi joined
 `LSPrmn60x` (board got `10.65.205.246`), Agent on `10.65.205.251:8888`. Confirmed:
-- micro-ROS: `/camera/mean_intensity` (~0.45) + `/camera/mean_color` publishing via the Agent.
+- micro-ROS: `/camera/light_level` + `/camera/mean_color` publishing via the Agent.
+  (Verified value ~0.45 predates the 2026-07-10 metric change: `light_level` is now the
+  **lit-pixel fraction**, ~0 in an ordinary room, rising only toward a bright light — needs a
+  re-flash to match the sim; see the note below.)
 - HTTP: `http://<board-ip>/stream` serves valid multipart JPEG.
 - `mjpeg_bridge` → `/camera/image_raw` at 320×240 (~3.5 Hz); `aruco_detector` runs on it (show a
   printed **4x4_50 id-0** marker — `perceptbot_sim/worlds/textures/aruco_0.png` — to get B6).

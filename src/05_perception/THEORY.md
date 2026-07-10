@@ -50,7 +50,7 @@ A camera produces more than pixels. The standard `sensor_msgs` types:
 
 **Project 05's twist — derived topics.** A whole image is expensive and a behaviour rarely
 needs every pixel. So we also publish *reductions*:
-- `/camera/mean_intensity` (`std_msgs/Float32`) — one brightness number.
+- `/camera/light_level` (`std_msgs/Float32`) — one brightness number.
 - `/camera/mean_color` (`std_msgs/ColorRGBA`) — one average colour.
 These are cheap enough to compute **on the ESP32 itself** and send over micro-ROS, while the
 full `Image` stays on WiFi/HTTP. That split (cheap scalars on the MCU, heavy pixels off-board)

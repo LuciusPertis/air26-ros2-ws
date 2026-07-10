@@ -8,12 +8,12 @@ same /cmd_vel, progressively richer senses.
   1  obstacle: stop + timer            (pub-sub on /ultrasonic/front)      [from 02]
   2  obstacle: stop + random turn      (pub-sub)                           [from 02]
   3  obstacle: service + escape action (/check_openings + /escape_obstacle)[from 02]
-  4  light-seek : go toward brightness (/camera/mean_intensity, scalar)
-  5  colour-seek: chase a target hue   (/camera/mean_color, scalar)
+  4  light-seek : go toward a light   (/camera/light_level = lit-pixel fraction)
+  5  colour-seek: go toward green     (/camera/color_level = green-pixel fraction)
   6  ArUco      : search + approach     (/aruco/detections + /approach_marker action)
 
-  subscribes: /ultrasonic/front|left|right, /camera/mean_intensity,
-              /camera/mean_color, /aruco/detections
+  subscribes: /ultrasonic/front|left|right, /camera/light_level,
+              /camera/color_level, /aruco/detections
   publishes:  /cmd_vel
   service:    /set_behavior
   clients:    /check_openings, /escape_obstacle [B3];  /approach_marker [B6]
@@ -23,7 +23,6 @@ at it, else spin to search". B6 uses real per-marker positions + an action — t
 motivates why localisation/actions matter.
 """
 
-import math
 import random
 
 import rclpy
@@ -31,7 +30,7 @@ from rclpy.action import ActionClient
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Range
-from std_msgs.msg import Float32, ColorRGBA
+from std_msgs.msg import Float32
 from vision_msgs.msg import Detection2DArray
 
 from perceptbot_interfaces.srv import CheckOpenings, SetBehavior
@@ -51,9 +50,14 @@ class BehaviorManager(Node):
         self.declare_parameter('b1_wait', 2.0)
         self.declare_parameter('b2_turn', 1.5)
         # vision params (B4-B6)
-        self.declare_parameter('intensity_threshold', 0.55)   # B4: "bright enough" to advance
-        self.declare_parameter('target_color', [0.1, 0.7, 0.2])  # B5: r,g,b 0..1 (greenish)
-        self.declare_parameter('color_match_threshold', 0.65)  # B5: 1-dist must exceed this
+        self.declare_parameter('intensity_threshold', 0.15)   # B4: min lit-fraction to start homing in
+        self.declare_parameter('intensity_stop', 0.40)        # B4: lit-fraction "arrived" -> stop
+        self.declare_parameter('color_threshold', 0.03)       # B5: min green-fraction to start homing in
+        self.declare_parameter('color_stop', 0.11)            # B5: green-fraction "arrived" -> stop
+        # NOTE: the green box is small, so its frame-fraction peaks (~0.14) at ~1.1 m and then
+        # falls as bang-bang drift lets the box slip out of view up close. color_stop sits on the
+        # rising edge -> B5 halts ~1.5 m out while it still clearly sees the box (B4's panel, being
+        # wall-sized, instead rose to 1.0 so its stop is much closer).
         self.declare_parameter('target_marker', -1)           # B6: which id (-1 = any)
         self.declare_parameter('search_turn', 0.5)            # rad/s spin while searching
         self.declare_parameter('seek_lin', 0.15)              # m/s when homing in
@@ -63,8 +67,8 @@ class BehaviorManager(Node):
         self.behavior = 1
         self.state = WALK
         self.front = self.left = self.right = 99.0
-        self.mean_intensity = 0.0
-        self.mean_color = (0.0, 0.0, 0.0)
+        self.light_level = 0.0
+        self.color_level = 0.0
         self.detections = []
         self.walk_cmd = Twist()
         self.t_next_sample = 0.0
@@ -81,10 +85,10 @@ class BehaviorManager(Node):
                                  lambda m: setattr(self, 'left', m.range), 10)
         self.create_subscription(Range, '/ultrasonic/right',
                                  lambda m: setattr(self, 'right', m.range), 10)
-        self.create_subscription(Float32, '/camera/mean_intensity',
-                                 lambda m: setattr(self, 'mean_intensity', m.data), 10)
-        self.create_subscription(ColorRGBA, '/camera/mean_color',
-                                 lambda m: setattr(self, 'mean_color', (m.r, m.g, m.b)), 10)
+        self.create_subscription(Float32, '/camera/light_level',
+                                 lambda m: setattr(self, 'light_level', m.data), 10)
+        self.create_subscription(Float32, '/camera/color_level',
+                                 lambda m: setattr(self, 'color_level', m.data), 10)
         self.create_subscription(Detection2DArray, '/aruco/detections',
                                  lambda m: setattr(self, 'detections', m.detections), 10)
 
@@ -232,11 +236,21 @@ class BehaviorManager(Node):
         if self.avoid_guard():
             return
         tw = Twist()
-        # === CHECKPOINT: behavior_4 ===  (phototaxis on a single scalar)
-        if self.mean_intensity >= self.get_parameter('intensity_threshold').value:
-            tw.linear.x = self.get_parameter('seek_lin').value      # bright -> head in
+        # === CHECKPOINT: behavior_4 ===  (phototaxis on a single scalar, with an arrival stop)
+        # Two thresholds turn one number into three states. light_level is the fraction of
+        # the frame that is bright light, so it grows as the panel (a) gets centred and (b)
+        # gets closer:
+        #   below min      -> only a sliver (or nothing) in view: spin to search / centre it
+        #   min..max       -> panel is well in view: drive straight at it
+        #   at/above max   -> panel now fills the frame => we are right in front of it: stop
+        # The stop is what keeps it from creeping into the wall the panel is mounted on.
+        inten = self.light_level
+        if inten >= self.get_parameter('intensity_stop').value:
+            pass                                                    # arrived -> hold still (zero twist)
+        elif inten >= self.get_parameter('intensity_threshold').value:
+            tw.linear.x = self.get_parameter('seek_lin').value      # panel centred -> head in
         else:
-            tw.angular.z = self.get_parameter('search_turn').value  # dark -> spin to search
+            tw.angular.z = self.get_parameter('search_turn').value  # not (well) seen -> spin to search
         # === END CHECKPOINT: behavior_4 ===
         self.cmd_pub.publish(tw)
 
@@ -245,14 +259,19 @@ class BehaviorManager(Node):
         if self.avoid_guard():
             return
         tw = Twist()
-        # === CHECKPOINT: behavior_5 ===  (chromotaxis: how close is the mean colour to target?)
-        tgt = self.get_parameter('target_color').value
-        dist = math.sqrt(sum((c - t) ** 2 for c, t in zip(self.mean_color, tgt))) / math.sqrt(3)
-        match = 1.0 - dist
-        if match >= self.get_parameter('color_match_threshold').value:
-            tw.linear.x = self.get_parameter('seek_lin').value      # colour present -> approach
+        # === CHECKPOINT: behavior_5 ===  (chromotaxis on a green-fraction scalar, arrival stop)
+        # Exactly B4's shape, on /camera/color_level (the fraction of the frame that is green).
+        # That fraction grows as the green box (a) gets centred and (b) gets closer:
+        #   below min      -> only a sliver of green (or none): spin to search / centre it
+        #   min..max       -> the box is well in view: drive straight at it
+        #   at/above max   -> the box fills the frame => we are right in front of it: stop
+        lvl = self.color_level
+        if lvl >= self.get_parameter('color_stop').value:
+            pass                                                    # arrived -> hold still
+        elif lvl >= self.get_parameter('color_threshold').value:
+            tw.linear.x = self.get_parameter('seek_lin').value      # green centred -> head in
         else:
-            tw.angular.z = self.get_parameter('search_turn').value  # not seen -> spin to search
+            tw.angular.z = self.get_parameter('search_turn').value  # not (well) seen -> spin to search
         # === END CHECKPOINT: behavior_5 ===
         self.cmd_pub.publish(tw)
 

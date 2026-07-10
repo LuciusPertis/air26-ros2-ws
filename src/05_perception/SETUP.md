@@ -38,7 +38,7 @@ ros2 service call /set_behavior perceptbot_interfaces/srv/SetBehavior "{behavior
 ros2 launch perceptbot_perception real_camera.launch.py \
      stream_url:=http://<board-ip>/stream
 ```
-The board publishes `/camera/mean_intensity` + `/camera/mean_color` itself over micro-ROS;
+The board publishes `/camera/light_level` + `/camera/mean_color` itself over micro-ROS;
 `mjpeg_bridge` adds `/camera/image_raw` (+ `camera_info`) so `aruco_detector` and B6 work too.
 
 ### ArUco scope

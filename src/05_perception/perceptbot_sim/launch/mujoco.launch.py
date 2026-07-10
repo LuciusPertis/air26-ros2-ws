@@ -1,7 +1,7 @@
 """MuJoCo embodiment of the perception rover (reference sim; Webots is primary).
 
   mujoco_driver    -> /cmd_vel -> rover -> /ultrasonic/*, /odom, /camera/image_raw
-  camera_processor -> /camera/mean_intensity, /camera/mean_color
+  camera_processor -> /camera/light_level, /camera/mean_color
   aruco_detector   -> /aruco/detections, /aruco/image
   robot_state_publisher (+ optional RViz)
 

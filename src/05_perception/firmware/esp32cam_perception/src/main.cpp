@@ -4,7 +4,7 @@
 // sim's camera_processor does, so the perceptbot behaviours (light-seek B4, colour-seek B5)
 // run against the real board unchanged:
 //
-//   micro-ROS (WiFi/UDP):  /camera/mean_intensity  (std_msgs/Float32)   0..1
+//   micro-ROS (WiFi/UDP):  /camera/light_level  (std_msgs/Float32)   0..1
 //                          /camera/mean_color      (std_msgs/ColorRGBA) r,g,b 0..1, a=1
 //   WiFi MJPEG HTTP:       http://<board-ip>/stream   (the full image — far too big to push
 //                          through micro-ROS/UDP, so it goes over plain HTTP, like every
@@ -96,20 +96,32 @@ bool init_camera() {
   return true;
 }
 
-// reduce one RGB565 frame -> mean intensity (0..1) + mean r,g,b (0..1)
+// a pixel with luma above this (0..255) counts as "lit" for /camera/light_level.
+// MUST match camera_processor.py's BRIGHT_CUT so sim and real cam publish the same number.
+static const uint8_t BRIGHT_CUT = 200;
+
+// reduce one RGB565 frame -> lit-pixel fraction (0..1) + mean r,g,b (0..1)
+//
+// intensity is the FRACTION OF NEAR-WHITE PIXELS, not a frame luma mean: a luma mean is
+// dominated by the always-bright sky and never isolates the light panel (behaviour 4 then
+// spins forever). Counting saturated pixels gives a clean ~0 baseline that only rises when
+// a real light source is in view. This mirrors camera_processor.py exactly.
 void frame_stats(camera_fb_t* fb, float& inten, float& mr, float& mg, float& mb) {
-  uint32_t sr = 0, sg = 0, sb = 0, n = 0;
+  uint32_t sr = 0, sg = 0, sb = 0, n = 0, lit = 0;
   for (size_t i = 0; i + 1 < fb->len; i += 2 * 4) {     // every 4th pixel is plenty
     uint16_t px = SWAP_RGB565 ? (fb->buf[i] | (fb->buf[i + 1] << 8))
                               : ((fb->buf[i] << 8) | fb->buf[i + 1]);
-    sr += ((px >> 11) & 0x1f) << 3;   // 5-bit R -> 0..255
-    sg += ((px >> 5) & 0x3f) << 2;    // 6-bit G -> 0..255
-    sb += (px & 0x1f) << 3;           // 5-bit B -> 0..255
+    uint16_t r = ((px >> 11) & 0x1f) << 3;   // 5-bit R -> 0..255
+    uint16_t g = ((px >> 5) & 0x3f) << 2;    // 6-bit G -> 0..255
+    uint16_t b = (px & 0x1f) << 3;           // 5-bit B -> 0..255
+    sr += r; sg += g; sb += b;
+    uint16_t luma = (77 * r + 150 * g + 29 * b) >> 8;   // ~0.299/0.587/0.114, integer
+    if (luma > BRIGHT_CUT) lit++;
     n++;
   }
   if (!n) { inten = mr = mg = mb = 0; return; }
   mr = (sr / float(n)) / 255.0f; mg = (sg / float(n)) / 255.0f; mb = (sb / float(n)) / 255.0f;
-  inten = 0.299f * mr + 0.587f * mg + 0.114f * mb;   // luma
+  inten = lit / float(n);   // fraction of near-white pixels
 }
 
 // ---- micro-ROS timer: capture, compute, publish ----
@@ -130,7 +142,7 @@ bool create_entities() {
   RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
   RCCHECK(rclc_node_init_default(&node, "esp32cam_perception", "", &support));
   RCCHECK(rclc_publisher_init_default(&pub_intensity, &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32), "/camera/mean_intensity"));
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32), "/camera/light_level"));
   RCCHECK(rclc_publisher_init_default(&pub_color, &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, ColorRGBA), "/camera/mean_color"));
   const unsigned int period = (unsigned int)(1000.0f / PUBLISH_HZ);

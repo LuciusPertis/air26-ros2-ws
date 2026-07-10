@@ -9,7 +9,7 @@ simulator is **Webots**; Gazebo/MuJoCo are reference only (see `THEORY.md`).
 ## The one new sensor, three new topics
 The rover gains an ESP32-CAM at the front. From its image we publish:
 - `/camera/image_raw` (`sensor_msgs/Image`) — the full picture (sim camera / WiFi MJPEG on HW).
-- `/camera/mean_intensity` (`std_msgs/Float32`) — one brightness scalar.
+- `/camera/light_level` (`std_msgs/Float32`) — one brightness scalar.
 - `/camera/mean_color` (`std_msgs/ColorRGBA`) — one average colour.
 The two scalars are cheap enough for the real ESP32 to compute on-board and send over
 micro-ROS; the image stays on WiFi/HTTP. Plus `/aruco/detections` (`vision_msgs/Detection2DArray`).
@@ -20,7 +20,7 @@ micro-ROS; the image stays on WiFi/HTTP. Plus `/aruco/detections` (`vision_msgs/
 | 1 | obstacle: stop + timer | `/ultrasonic/front` | pub-sub | (from 02) |
 | 2 | obstacle: stop + random turn | ultrasonics | pub-sub | (from 02) |
 | 3 | obstacle: service + escape action | ultrasonics | `/check_openings` + `/escape_obstacle` | (from 02) |
-| 4 | light-seek | `/camera/mean_intensity` | scalar phototaxis |
+| 4 | light-seek | `/camera/light_level` | scalar phototaxis |
 | 5 | colour-seek | `/camera/mean_color` | scalar chromotaxis |
 | 6 | ArUco search + approach | `/aruco/detections` | `/approach_marker` action |
 
@@ -32,7 +32,7 @@ safety overlay.
 - `perceptbot_interfaces` — `SetBehavior` (1-6), `CheckOpenings`, `EscapeObstacle` (from 02) +
   new `ApproachMarker` action.
 - `perceptbot_description` — the 02 skid-steer xacro **+ a front camera link** (RViz/TF).
-- `perceptbot_perception` — `camera_processor` (image → mean_intensity/mean_color),
+- `perceptbot_perception` — `camera_processor` (image → light_level/mean_color),
   `aruco_detector` (image → detections + overlay), `mjpeg_bridge` (real ESP32-CAM WiFi MJPEG
   → `/camera/image_raw`). Sim-agnostic; same nodes run on sim or the real cam's stream.
 - `perceptbot_behaviors` — `behavior_manager` (B1-B6 dispatcher), `obstacle_services`
@@ -45,11 +45,11 @@ safety overlay.
     `gz_bridge.yaml`, `scan_to_range` (LaserScan→Range), `gazebo.launch.py`.
   - **ArUco (B6) is Webots-sim + real-cam only**; MuJoCo/Gazebo cover B1-5 (MuJoCo can't map a
     flat marker decal onto a box face; kept simple/consistent across both reference sims).
-- `firmware/esp32cam_perception` — real ESP32-CAM: mean_intensity + mean_color over micro-ROS,
+- `firmware/esp32cam_perception` — real ESP32-CAM: light_level + mean_color over micro-ROS,
   full image over WiFi MJPEG. Same interface as the sim camera → behaviours unchanged.
 
 ## Checkpoint blocks (comment out → feature disappears)
-`camera` (description), `mean_intensity` / `mean_color` (camera_processor),
+`camera` (description), `light_level` / `mean_color` (camera_processor),
 `aruco_detect` / `aruco_overlay` (aruco_detector), `behavior_1..6` (behavior_manager),
 `service` / `action` (obstacle_services).
 

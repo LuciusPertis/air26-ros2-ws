@@ -14,18 +14,45 @@ Viewpoint {
 }
 TexturedBackground { }
 TexturedBackgroundLight { }
+
+# Behaviour 4 reduces the whole frame to ONE number (/camera/light_level), so that
+# number only means "am I facing the light?" if the panel is the only bright thing in
+# view. The arena surfaces are therefore dark and fully matte: the RectangleArena
+# defaults (Parquetry floor + BrushedAluminium walls) are bright and specular, and their
+# highlights swamped the panel in the frame mean. IBLStrength 0 also stops them picking
+# up the (still present) textured-sky lighting as reflections.
 RectangleArena {
   floorSize 4 4
   wallHeight 0.25
+  floorAppearance PBRAppearance {
+    baseColor 0.12 0.12 0.12
+    metalness 0
+    roughness 1
+    IBLStrength 0
+  }
+  wallAppearance PBRAppearance {
+    baseColor 0.18 0.18 0.20
+    metalness 0
+    roughness 1
+    IBLStrength 0
+  }
 }
 
-# ----- a bright self-lit panel for behaviour 4 (light-seek), on +Y wall -----
+# ----- a self-luminous, absolute-white panel for behaviour 4 (light-seek), on +Y wall -----
+# emissiveColor renders at full white regardless of scene lighting, so the panel is the
+# only saturated region in the frame.
 Solid {
   translation 0 1.9 0.4
   rotation 1 0 0 1.5708
   children [
     Shape {
-      appearance PBRAppearance { baseColor 1 1 1 emissiveColor 1 1 1 metalness 0 roughness 1 }
+      appearance PBRAppearance {
+        baseColor 1 1 1
+        emissiveColor 1 1 1
+        emissiveIntensity 1
+        metalness 0
+        roughness 1
+      }
       geometry Box { size 0.8 0.6 0.02 }
     }
   ]
@@ -42,7 +69,7 @@ Solid {
   translation 0 -1.7 0.15
   children [
     Shape {
-      appearance PBRAppearance { baseColor 0.1 0.8 0.2 metalness 0 roughness 1 }
+      appearance PBRAppearance { baseColor 0.1 0.8 0.2 metalness 0 roughness 1 IBLStrength 0 }
       geometry Box { size 0.3 0.3 0.3 }
     }
   ]
@@ -60,6 +87,7 @@ Solid {
         baseColorMap ImageTexture { url [ "textures/aruco_0.png" ] }
         metalness 0
         roughness 1
+        IBLStrength 0
       }
       geometry Box { size 0.02 0.4 0.4 }
     }
@@ -70,13 +98,13 @@ Solid {
 # ----- a couple of pillars so the obstacle behaviours (1-3) have something to hit -----
 Solid {
   translation -1.0 0.6 0.2
-  children [ Shape { appearance PBRAppearance { baseColor 0.6 0.4 0.2 } geometry Cylinder { height 0.4 radius 0.1 } } ]
+  children [ Shape { appearance PBRAppearance { baseColor 0.22 0.15 0.08 metalness 0 roughness 1 IBLStrength 0 } geometry Cylinder { height 0.4 radius 0.1 } } ]
   name "pillar_a"
   boundingObject Cylinder { height 0.4 radius 0.1 }
 }
 Solid {
   translation -1.2 -0.8 0.2
-  children [ Shape { appearance PBRAppearance { baseColor 0.6 0.4 0.2 } geometry Cylinder { height 0.4 radius 0.1 } } ]
+  children [ Shape { appearance PBRAppearance { baseColor 0.22 0.15 0.08 metalness 0 roughness 1 IBLStrength 0 } geometry Cylinder { height 0.4 radius 0.1 } } ]
   name "pillar_b"
   boundingObject Cylinder { height 0.4 radius 0.1 }
 }
@@ -89,7 +117,7 @@ Robot {
   children [
     # chassis
     Shape {
-      appearance PBRAppearance { baseColor 0.25 0.25 0.28 metalness 0 roughness 1 }
+      appearance PBRAppearance { baseColor 0.25 0.25 0.28 metalness 0 roughness 1 IBLStrength 0 }
       geometry Box { size 0.30 0.28 0.10 }
     }
 
@@ -131,7 +159,7 @@ Robot {
       endPoint Solid {
         translation 0.11 0.16 -0.05
         rotation 1 0 0 1.5708
-        children [ DEF WHEEL Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 } geometry Cylinder { height 0.04 radius 0.05 } } ]
+        children [ DEF WHEEL Shape { appearance PBRAppearance { baseColor 0.05 0.05 0.05 metalness 0 roughness 1 IBLStrength 0 } geometry Cylinder { height 0.04 radius 0.05 } } ]
         name "wheel_fl"
         boundingObject USE WHEEL
         physics Physics { density -1 mass 0.2 }
